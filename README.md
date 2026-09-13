@@ -31,8 +31,9 @@ unit tests pass, concentrated at bracket/tier/threshold boundaries.
 - Minnesota and federal tax figures are 2025 estimates from public
   sources, not yet verified against MN Department of Revenue / IRS
   publications — see `TODO.md`.
-- No end-to-end validation against an independently hand-computed
-  scenario yet (Phase 6) — only unit-level boundary tests so far.
+- Phase 6 validation has one hand-computed end-to-end scenario checked
+  (wages + conversion, MFJ, federal + Minnesota) — more scenarios, and a
+  review by someone who knows the tax code, are still needed.
 - No logo — deliberately deferred.
 - The Electron app itself hasn't been run in a real windowed session in
   this environment (no display available while building it); `npm run dev`

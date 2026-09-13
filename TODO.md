@@ -40,12 +40,13 @@ built yet.
   before being relied on for a real decision. Federal figures likewise need
   a spot-check against the IRS's own Rev. Proc. Both are called out in the
   app's own footer disclaimer in the meantime.
-- No automated end-to-end validation against an independently computed
-  scenario yet (BRACKETEER_BUILD_PLAN.md Phase 6) — the 67 engine unit
-  tests are boundary-focused (one dollar either side of every bracket/tier/
-  threshold), which is different from "does a realistic full scenario match
-  a hand-worked example." Worth doing before treating this as trustworthy
-  for a real household's numbers.
+- One hand-computed end-to-end scenario is validated
+  (`src/engine/handComputedScenario.test.ts` — a full MFJ wages+conversion
+  return checked against a by-hand federal + Minnesota calculation, not
+  just boundary tests), but that's one scenario. More — especially ones
+  exercising SS taxability, IRMAA, and the widow's-penalty switch together
+  — plus a review by someone who actually knows the tax code, are still
+  needed before treating this as trustworthy for a real household's numbers.
 - Electron app has not yet been smoke-tested in a real windowed session in
   this environment (no display available in this sandbox) — `npm run dev`/
   `npm run package` should be tried on a real machine before shipping a
