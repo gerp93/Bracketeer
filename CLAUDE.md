@@ -36,5 +36,9 @@ there; keep app/window/IPC code in `src/main/`.
 
 ## Current state
 
-Phase 0 (repo scaffold) only. The engine files under `src/engine/` are
-placeholders that throw rather than compute — see `TODO.md`.
+All six phases have a first pass built (engine, projection, marginal-rate
+analyzer, and UI) — see `TODO.md` for what's left, most importantly:
+Minnesota/federal figures need verification against official sources, and
+Phase 6 (end-to-end validation against a hand-computed scenario) hasn't
+happened yet. Treat current numbers as structurally correct, not yet
+verified-accurate.

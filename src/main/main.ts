@@ -11,6 +11,10 @@ import {
   setDbPath,
   resetToDefaultDbPath,
 } from './dbLocation';
+import { initDatabase } from './database/schema';
+import { ScenarioService } from './database/scenarioService';
+import type { CreateScenarioInput, UpdateScenarioInput } from '../shared/types/scenario';
+import type { Database } from 'sql.js';
 
 pinUserDataPath();
 app.setName('bracketeer');
@@ -35,6 +39,8 @@ if (!gotLock) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let db: Database | null = null;
+let scenarioService: ScenarioService;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -154,9 +160,8 @@ app.whenReady().then(async () => {
     return;
   }
 
-  // TODO (Phase 5): initialize sql.js database + household/scenario services here,
-  // once the engine (Phases 1-4) and its persisted shapes exist. See
-  // ROTH_PLANNER_V1_REQUIREMENTS.md and BRACKETEER_BUILD_PLAN.md for the plan.
+  db = await initDatabase();
+  scenarioService = new ScenarioService(db);
 
   registerIPCHandlers();
 
@@ -223,4 +228,15 @@ function registerIPCHandlers() {
   // App / update handlers
   ipcMain.handle('app:getVersion', () => app.getVersion());
   ipcMain.handle('updates:check', () => checkForUpdatesNow());
+
+  // Scenario handlers
+  ipcMain.handle('scenarios:getAll', () => scenarioService.getAll());
+  ipcMain.handle('scenarios:getById', (_, id: string) => scenarioService.getById(id));
+  ipcMain.handle('scenarios:create', (_, input: CreateScenarioInput) => scenarioService.create(input));
+  ipcMain.handle('scenarios:update', (_, id: string, input: UpdateScenarioInput) => scenarioService.update(id, input));
+  ipcMain.handle('scenarios:duplicate', (_, id: string, newName: string) => scenarioService.duplicate(id, newName));
+  ipcMain.handle('scenarios:delete', (_, id: string) => {
+    scenarioService.delete(id);
+    return { success: true };
+  });
 }

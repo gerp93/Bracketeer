@@ -19,10 +19,27 @@ This is a modeling tool, not tax or investment advice.
 
 ## Status
 
-Early scaffold. The tax engine and UI are not built yet — see
-[`BRACKETEER_BUILD_PLAN.md`](BRACKETEER_BUILD_PLAN.md) for the phased plan
-and [`ROTH_PLANNER_V1_REQUIREMENTS.md`](ROTH_PLANNER_V1_REQUIREMENTS.md)
-for what v1 covers.
+All six phases of [`BRACKETEER_BUILD_PLAN.md`](BRACKETEER_BUILD_PLAN.md)
+have a first pass built: the federal + Minnesota tax engine, the year-by-
+year projection with the widow's-penalty filing-status switch, the
+marginal-rate analyzer, and a working UI on top of it (household/account
+inputs, an editable projection grid, the marginal-rate panel, and
+scenario save/load/duplicate/compare backed by local SQLite). 67 engine
+unit tests pass, concentrated at bracket/tier/threshold boundaries.
+
+**Not yet done, and worth knowing before trusting the numbers:**
+- Minnesota and federal tax figures are 2025 estimates from public
+  sources, not yet verified against MN Department of Revenue / IRS
+  publications — see `TODO.md`.
+- No end-to-end validation against an independently hand-computed
+  scenario yet (Phase 6) — only unit-level boundary tests so far.
+- No logo — deliberately deferred.
+- The Electron app itself hasn't been run in a real windowed session in
+  this environment (no display available while building it); `npm run dev`
+  should be tried on a real machine.
+
+See [`ROTH_PLANNER_V1_REQUIREMENTS.md`](ROTH_PLANNER_V1_REQUIREMENTS.md)
+for what v1 covers and doesn't, and `TODO.md` for the full remaining list.
 
 ## Scope (v1)
 
