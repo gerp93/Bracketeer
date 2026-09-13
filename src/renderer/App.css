@@ -1,0 +1,44 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-family: system-ui, sans-serif;
+}
+
+.app-shell__header {
+  padding: 1.5rem 2rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.app-shell__logo {
+  width: 32px;
+  height: 32px;
+}
+
+.app-shell__header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.app-shell__tagline {
+  margin: 0;
+  color: var(--color-text-muted);
+  width: 100%;
+}
+
+.app-shell__main {
+  flex: 1;
+  padding: 0 2rem;
+}
+
+.app-shell__disclaimer {
+  padding: 1rem 2rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border);
+}

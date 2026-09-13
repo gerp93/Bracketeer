@@ -1,0 +1,21 @@
+# Lightweight PR gate: typecheck + unit tests. Not one of the reusable
+# KVG_Standards workflows (those cover release, not PR-time checks) — this
+# is local because it's specific to this repo's own build/test commands.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
