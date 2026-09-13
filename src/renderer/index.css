@@ -1,0 +1,81 @@
+/* Base layer, adapted from Sweeper's src/renderer/index.css reference
+   pattern: fallback tokens (used before/if no VisualAssault theme class is
+   applied to body), resets, and shared component defaults. themes.css
+   overrides these --color-* custom properties per theme; --radius/--shadow
+   aren't part of VisualAssault's token set and stay defined only here. */
+:root {
+  --color-bg: #f5f6f8;
+  --color-bg-hover: #ffffff;
+  --color-top-bar-bg: #ffffff;
+  --color-top-bar-hover: #f5f6f8;
+  --color-text: #1a1d24;
+  --color-text-muted: #6b7280;
+  --color-primary-action: #2563eb;
+  --color-primary-action-hover: #1d4ed8;
+  /* Not a VisualAssault token (its README notes it's only present when a
+     theme overrides it) — fallback here so button text stays legible on
+     every theme, including ones that don't set it. */
+  --color-primary-action-text: #ffffff;
+  --color-accent-green: #16803c;
+  --color-accent-red: #dc2626;
+  --color-accent-blue: #2563eb;
+  --color-accent-muted: #dde3ea;
+  --color-surface: #ffffff;
+  --color-border: #e2e5ea;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 8px;
+}
