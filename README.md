@@ -1,3 +1,5 @@
+<img src="assets/logo.png" alt="Bracketeer logo" width="120" />
+
 # Bracketeer
 
 A Roth IRA conversion planner for households approaching or entering
@@ -34,7 +36,6 @@ unit tests pass, concentrated at bracket/tier/threshold boundaries.
 - Phase 6 validation has one hand-computed end-to-end scenario checked
   (wages + conversion, MFJ, federal + Minnesota) — more scenarios, and a
   review by someone who knows the tax code, are still needed.
-- No logo — deliberately deferred.
 - The Electron app itself hasn't been run in a real windowed session in
   this environment (no display available while building it); `npm run dev`
   should be tried on a real machine.

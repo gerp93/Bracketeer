@@ -1,12 +1,8 @@
 // One-off icon generation from assets/logo.png. Run with: node scripts/generate-icons.js
 //
-// NOTE: assets/logo.png does not exist yet — this repo has no source mark
-// checked in. Per the app-standards skill's Logo & branding checklist, this
-// is a real gap (tracked in TODO.md), not a stylistic choice. This script
-// is here so that the moment a source logo is added, generating every
-// derived size/format is a single command rather than hand-exporting each
-// one — never hand-copy icon files per size, see KVG_Standards' Logo &
-// branding checklist for why.
+// Regenerate every derived size/format from the one source mark with this
+// script rather than hand-exporting each size — never hand-copy icon files
+// per size, see KVG_Standards' Logo & branding checklist for why.
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
