@@ -4,6 +4,7 @@ import type {
   HouseholdInput,
   ProjectionSummary,
   ProjectionYearResult,
+  SocialSecurityDetail,
   YearPlanInput,
 } from './projectionTypes';
 import { computeFederalTax } from './federalTax';
@@ -11,7 +12,7 @@ import { FEDERAL_TAX_TABLES_2025, projectTaxYearTables } from './data/federalTax
 import { resolveStateTaxModule } from './states';
 import { computeIrmaa } from './irmaa';
 import { computeRmd } from './rmd';
-import { householdSocialSecurityBenefit } from './socialSecurityBenefit';
+import { householdSocialSecurityBenefit, spouseAnnualBenefit, claimingAdjustmentFactor } from './socialSecurityBenefit';
 
 const FEDERAL_BASE_YEAR = FEDERAL_TAX_TABLES_2025.year;
 
@@ -32,16 +33,16 @@ const FEDERAL_BASE_YEAR = FEDERAL_TAX_TABLES_2025.year;
  *      and recomputes tax once more. Close enough for a planning tool, but
  *      not exact to the dollar in an extreme edge case.
  *
- * `priorMagiHistory` supplies MAGI for (startYear - 2) and (startYear - 1)
- * so year 1 and 2's IRMAA lookback has something real to read; omitted
- * years are treated as $0 MAGI (no IRMAA surcharge in early projection years).
+ * `household.priorMagiHistory` supplies actual MAGI for (startYear - 2) and
+ * (startYear - 1) so year 1 and 2's IRMAA lookback has something real to
+ * read, rather than assuming $0 income (and therefore no surcharge) in the
+ * first two projected years.
  */
-export function runProjection(
-  household: HouseholdInput,
-  yearPlans: YearPlanInput[],
-  priorMagiHistory: Record<number, number> = {}
-): ProjectionSummary {
-  const magiHistory: Record<number, number> = { ...priorMagiHistory };
+export function runProjection(household: HouseholdInput, yearPlans: YearPlanInput[]): ProjectionSummary {
+  const magiHistory: Record<number, number> = {
+    [household.startYear - 2]: household.priorMagiHistory.twoYearsBefore,
+    [household.startYear - 1]: household.priorMagiHistory.oneYearBefore,
+  };
   const years: ProjectionYearResult[] = [];
 
   let balances: AccountBalances = { ...household.startingBalances };
@@ -92,6 +93,9 @@ export function runProjection(
       plan.conversionAmount,
       Math.max(0, startingBalancesThisYear.traditional - rmdAmount)
     );
+    // Capped at the Roth balance at the START of the year — this year's own
+    // conversion isn't treated as available to withdraw right back out.
+    const rothWithdrawal = Math.min(plan.rothWithdrawal, startingBalancesThisYear.roth);
 
     const ssBenefits = householdSocialSecurityBenefit(
       household.spouses,
@@ -99,6 +103,11 @@ export function runProjection(
       household.startYear,
       household.generalInflationAssumption
     );
+    const socialSecurityDetail: SocialSecurityDetail = {
+      spouseA: spouseSsDetail(household.spouses[0], year, household.startYear, household.generalInflationAssumption, aliveA),
+      spouseB: spouseSsDetail(household.spouses[1], year, household.startYear, household.generalInflationAssumption, aliveB),
+      isSurvivorBenefit: filingStatus === 'single',
+    };
 
     const proRataNonTaxableFraction =
       startingBalancesThisYear.traditional > 0
@@ -121,7 +130,11 @@ export function runProjection(
       year
     );
 
-    const cashFromOrdinarySources = plan.wages + plan.pension + plan.otherOrdinaryIncome + rmdAmount + ssBenefits;
+    // Roth withdrawals are tax-free cash (unlike everything else in this
+    // sum), so they don't touch either tax pass above — they only reduce
+    // what's needed from the Brokerage account below.
+    const cashFromOrdinarySources =
+      plan.wages + plan.pension + plan.otherOrdinaryIncome + rmdAmount + ssBenefits + rothWithdrawal;
     const cashNeed = plan.targetSpending + pass1.federalResult.totalFederalTax + pass1.stateResult.stateTax;
     const shortfall = Math.max(0, cashNeed - cashFromOrdinarySources);
     const withdrawal = Math.min(shortfall, startingBalancesThisYear.taxable);
@@ -164,7 +177,7 @@ export function runProjection(
     const traditionalBasisConsumed = proRataNonTaxableFraction * conversionAmount;
     const nextTraditional = startingBalancesThisYear.traditional - rmdAmount - conversionAmount;
     const nextTraditionalBasis = Math.max(0, startingBalancesThisYear.traditionalBasis - traditionalBasisConsumed);
-    const nextRoth = startingBalancesThisYear.roth + conversionAmount;
+    const nextRoth = startingBalancesThisYear.roth + conversionAmount - rothWithdrawal;
     const nextTaxable = startingBalancesThisYear.taxable - withdrawal;
     const taxableBasisConsumed =
       startingBalancesThisYear.taxable > 0
@@ -189,7 +202,9 @@ export function runProjection(
       startingBalances: startingBalancesThisYear,
       rmdAmount,
       conversionAmount,
+      rothWithdrawal,
       socialSecurityBenefits: ssBenefits,
+      socialSecurityDetail,
       capitalGainsRealized: totalCapitalGains,
       federalResult: pass2.federalResult,
       stateResult: pass2.stateResult,
@@ -215,6 +230,25 @@ export function runProjection(
     terminalBalances.taxable;
 
   return { years, lifetimeTaxPaid, terminalBalances, terminalAfterTaxWealth };
+}
+
+/** Builds the per-spouse breakdown the SS column tooltip renders, mirroring the same claiming-adjustment and inflation math householdSocialSecurityBenefit itself uses. */
+function spouseSsDetail(
+  spouse: HouseholdInput['spouses'][0],
+  year: number,
+  startYear: number,
+  generalInflationAssumption: number,
+  alive: boolean
+) {
+  return {
+    name: spouse.name,
+    baseAtFRA: spouse.ssBenefitAtFRA,
+    hypotheticalBenefit: spouseAnnualBenefit({ ...spouse, assumedDeathYear: undefined }, year, startYear, generalInflationAssumption),
+    hasClaimed: year - spouse.birthYear >= spouse.ssClaimingAge,
+    claimingAge: spouse.ssClaimingAge,
+    claimingAdjustmentFactor: claimingAdjustmentFactor(spouse.ssClaimingAge),
+    alive,
+  };
 }
 
 function computeYearTax(

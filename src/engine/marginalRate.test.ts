@@ -5,8 +5,8 @@ import type { HouseholdInput, YearPlanInput } from './projectionTypes';
 function makeHousehold(overrides: Partial<HouseholdInput> = {}): HouseholdInput {
   return {
     spouses: [
-      { birthYear: 1955, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
-      { birthYear: 1956, ssBenefitAtFRA: 20_000, ssClaimingAge: 67 },
+      { name: 'Spouse 1', birthYear: 1955, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
+      { name: 'Spouse 2', birthYear: 1956, ssBenefitAtFRA: 20_000, ssClaimingAge: 67 },
     ],
     stateCode: 'MN',
     flatRateStateFallbackRate: 0,
@@ -21,6 +21,7 @@ function makeHousehold(overrides: Partial<HouseholdInput> = {}): HouseholdInput 
       taxable: 200_000,
       taxableCostBasis: 100_000,
     },
+    priorMagiHistory: { twoYearsBefore: 0, oneYearBefore: 0 },
     ...overrides,
   };
 }
@@ -31,6 +32,7 @@ function plansWithConversion(household: HouseholdInput, conversionByYear: Record
     return {
       year,
       conversionAmount: conversionByYear[year] ?? 0,
+      rothWithdrawal: 0,
       wages: 0,
       pension: 0,
       otherOrdinaryIncome: 20_000,

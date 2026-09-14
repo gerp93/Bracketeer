@@ -1,4 +1,9 @@
+import { useState } from 'react';
 import type { HouseholdInput } from '../../engine/projectionTypes';
+import InfoTooltip from './InfoTooltip';
+import Modal from './Modal';
+import CurrencyInput from './CurrencyInput';
+import PercentInput from './PercentInput';
 
 interface Props {
   household: HouseholdInput;
@@ -7,6 +12,9 @@ interface Props {
 
 /** Household, account, and assumption inputs. Every field here is a direct, editable assumption — nothing about the projection happens without something on this form driving it. */
 export default function HouseholdForm({ household, onChange }: Props) {
+  const [editingSpouse, setEditingSpouse] = useState<0 | 1 | null>(null);
+  const [draftName, setDraftName] = useState('');
+
   const set = <K extends keyof HouseholdInput>(key: K, value: HouseholdInput[K]) =>
     onChange({ ...household, [key]: value });
 
@@ -19,15 +27,33 @@ export default function HouseholdForm({ household, onChange }: Props) {
   const setBalance = (key: keyof HouseholdInput['startingBalances'], value: number) =>
     onChange({ ...household, startingBalances: { ...household.startingBalances, [key]: value } });
 
+  const openNameEditor = (index: 0 | 1) => {
+    setDraftName(household.spouses[index].name);
+    setEditingSpouse(index);
+  };
+
+  const saveName = () => {
+    if (editingSpouse !== null) setSpouse(editingSpouse, { name: draftName.trim() });
+    setEditingSpouse(null);
+  };
+
   return (
     <div className="panel">
       <h2>Household</h2>
       <div className="form-grid">
         {([0, 1] as const).map((i) => (
           <fieldset key={i}>
-            <legend>Spouse {i + 1}</legend>
+            <legend>
+              {household.spouses[i].name || `Spouse ${i + 1}`}
+              <button type="button" className="legend-edit-button" title="Edit name" onClick={() => openNameEditor(i)}>
+                ✎
+              </button>
+            </legend>
             <label>
-              Birth year
+              <span className="field-label-row">
+                Birth year
+                <InfoTooltip text="This spouse's birth year — drives their age in every projected year, which in turn drives when RMDs start, Medicare/IRMAA eligibility, and Social Security claiming eligibility." />
+              </span>
               <input
                 type="number"
                 value={household.spouses[i].birthYear}
@@ -35,7 +61,10 @@ export default function HouseholdForm({ household, onChange }: Props) {
               />
             </label>
             <label>
-              Assumed death year (optional — drives the widow&rsquo;s-penalty modeling)
+              <span className="field-label-row">
+                Assumed death year (optional — drives the widow&rsquo;s-penalty modeling)
+                <InfoTooltip text="Optional. Leave blank to assume this spouse survives the whole projection. If set, the household switches to single filing status the following year, and the survivor inherits this spouse's Social Security benefit if it's larger than their own — the 'widow's penalty' this tool is built to model." />
+              </span>
               <input
                 type="number"
                 placeholder="alive through horizon"
@@ -46,15 +75,20 @@ export default function HouseholdForm({ household, onChange }: Props) {
               />
             </label>
             <label>
-              SS benefit at full retirement age (annual, today&rsquo;s $)
-              <input
-                type="number"
+              <span className="field-label-row">
+                SS benefit at full retirement age (annual, today&rsquo;s $)
+                <InfoTooltip text="Their Social Security benefit if claimed at full retirement age (67) — often called their 'PIA'. This isn't a number Bracketeer can look up or calculate: it depends on this spouse's own lifetime earnings record, not a government table. Find it on their Social Security Statement at ssa.gov/myaccount (or the paper statement SSA mails). Enter it in today's dollars — the app inflates it forward for you." />
+              </span>
+              <CurrencyInput
                 value={household.spouses[i].ssBenefitAtFRA}
-                onChange={(e) => setSpouse(i, { ssBenefitAtFRA: Number(e.target.value) })}
+                onChange={(v) => setSpouse(i, { ssBenefitAtFRA: v })}
               />
             </label>
             <label>
-              SS claiming age
+              <span className="field-label-row">
+                SS claiming age
+                <InfoTooltip text="The age this spouse starts (or started) collecting Social Security. Claiming before 67 permanently reduces the benefit; claiming after 67 (up to 70) permanently increases it. This is the one SS input that IS a fixed government formula — Bracketeer applies the adjustment automatically." />
+              </span>
               <input
                 type="number"
                 value={household.spouses[i].ssClaimingAge}
@@ -67,7 +101,10 @@ export default function HouseholdForm({ household, onChange }: Props) {
         <fieldset>
           <legend>State &amp; assumptions</legend>
           <label>
-            State
+            <span className="field-label-row">
+              State
+              <InfoTooltip text="Which state's income tax rules apply. Minnesota has its own modeled tax module (brackets, Social Security subtraction, standard deduction phase-out); any other state falls back to a single flat rate you supply below." />
+            </span>
             <select value={household.stateCode} onChange={(e) => set('stateCode', e.target.value)}>
               <option value="MN">Minnesota (modeled)</option>
               <option value="OTHER">Other (flat-rate approximation)</option>
@@ -75,17 +112,21 @@ export default function HouseholdForm({ household, onChange }: Props) {
           </label>
           {household.stateCode !== 'MN' && (
             <label>
-              Flat state rate approximation
-              <input
-                type="number"
-                step="0.001"
+              <span className="field-label-row">
+                Flat state rate approximation
+                <InfoTooltip text="A single flat percentage applied to taxable income as a rough stand-in for a state that doesn't have its own dedicated tax module yet. Not a substitute for that state's real brackets and deductions." />
+              </span>
+              <PercentInput
                 value={household.flatRateStateFallbackRate}
-                onChange={(e) => set('flatRateStateFallbackRate', Number(e.target.value))}
+                onChange={(v) => set('flatRateStateFallbackRate', v)}
               />
             </label>
           )}
           <label>
-            Start year
+            <span className="field-label-row">
+              Start year
+              <InfoTooltip text="The first calendar year of the projection — row one of the grid. Every other year-based input (ages, inflation compounding, the IRMAA lookback years below) is measured relative to this." />
+            </span>
             <input
               type="number"
               value={household.startYear}
@@ -93,7 +134,10 @@ export default function HouseholdForm({ household, onChange }: Props) {
             />
           </label>
           <label>
-            Horizon (years)
+            <span className="field-label-row">
+              Horizon (years)
+              <InfoTooltip text="How many years the projection runs, starting from Start year. Determines how many rows appear in the grid below." />
+            </span>
             <input
               type="number"
               value={household.horizonYears}
@@ -101,21 +145,57 @@ export default function HouseholdForm({ household, onChange }: Props) {
             />
           </label>
           <label>
-            General inflation assumption
-            <input
-              type="number"
-              step="0.001"
+            <span className="field-label-row">
+              General inflation assumption
+              <InfoTooltip text="The general annual inflation rate used to grow Social Security benefits, tax bracket thresholds, and other today's-dollars inputs forward into future years' nominal dollars." />
+            </span>
+            <PercentInput
               value={household.generalInflationAssumption}
-              onChange={(e) => set('generalInflationAssumption', Number(e.target.value))}
+              onChange={(v) => set('generalInflationAssumption', v)}
             />
           </label>
           <label>
-            Assumed heir marginal rate
-            <input
-              type="number"
-              step="0.01"
+            <span className="field-label-row">
+              Assumed heir marginal rate
+              <InfoTooltip text="The tax rate assumed for whoever inherits the remaining Traditional balance after both spouses pass away. Traditional money isn't fully theirs until they pay ordinary income tax on it (typically within the SECURE Act's 10-year window), so this haircut is applied only to the Traditional portion of the 'terminal after-tax wealth' metric — Roth and taxable balances count at face value since they aren't taxed again." />
+            </span>
+            <PercentInput
               value={household.assumedHeirMarginalRate}
-              onChange={(e) => set('assumedHeirMarginalRate', Number(e.target.value))}
+              onChange={(v) => set('assumedHeirMarginalRate', v)}
+            />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>IRMAA lookback</legend>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Medicare's IRMAA surcharge looks at your income from two years earlier. For the projection's first two
+            years, that means real history from before this plan starts — enter your actual MAGI (Modified Adjusted
+            Gross Income, from line 11 of Form 1040 plus any tax-exempt interest) for those two years so the surcharge
+            shows up accurately instead of assuming $0.
+          </p>
+          <label>
+            <span className="field-label-row">
+              {`MAGI in ${household.startYear - 2}`}
+              <InfoTooltip
+                text={`Actual MAGI for ${household.startYear - 2} — this drives whether IRMAA applies in ${household.startYear} (the first projected year).`}
+              />
+            </span>
+            <CurrencyInput
+              value={household.priorMagiHistory.twoYearsBefore}
+              onChange={(v) => set('priorMagiHistory', { ...household.priorMagiHistory, twoYearsBefore: v })}
+            />
+          </label>
+          <label>
+            <span className="field-label-row">
+              {`MAGI in ${household.startYear - 1}`}
+              <InfoTooltip
+                text={`Actual MAGI for ${household.startYear - 1} — this drives whether IRMAA applies in ${household.startYear + 1} (the second projected year).`}
+              />
+            </span>
+            <CurrencyInput
+              value={household.priorMagiHistory.oneYearBefore}
+              onChange={(v) => set('priorMagiHistory', { ...household.priorMagiHistory, oneYearBefore: v })}
             />
           </label>
         </fieldset>
@@ -123,47 +203,75 @@ export default function HouseholdForm({ household, onChange }: Props) {
         <fieldset>
           <legend>Starting balances</legend>
           <label>
-            Traditional
-            <input
-              type="number"
+            <span className="field-label-row">
+              Traditional
+              <InfoTooltip text="Today's balance in tax-deferred retirement accounts (Traditional IRA/401(k)/403(b) etc.) — money that hasn't been taxed yet. RMDs are forced out of this, and Roth conversions move money out of this into Roth." />
+            </span>
+            <CurrencyInput
               value={household.startingBalances.traditional}
-              onChange={(e) => setBalance('traditional', Number(e.target.value))}
+              onChange={(v) => setBalance('traditional', v)}
             />
           </label>
           <label>
-            Traditional nondeductible basis
-            <input
-              type="number"
+            <span className="field-label-row">
+              Traditional nondeductible basis
+              <InfoTooltip text="The portion of the Traditional balance that's already after-tax — nondeductible contributions you made yourself (not the typical case; leave at 0 if every dollar in Traditional was pre-tax). This shrinks the taxable share of every future RMD and conversion, pro-rata, under the IRS's pro-rata rule." />
+            </span>
+            <CurrencyInput
               value={household.startingBalances.traditionalBasis}
-              onChange={(e) => setBalance('traditionalBasis', Number(e.target.value))}
+              onChange={(v) => setBalance('traditionalBasis', v)}
             />
           </label>
           <label>
-            Roth
-            <input
-              type="number"
-              value={household.startingBalances.roth}
-              onChange={(e) => setBalance('roth', Number(e.target.value))}
-            />
+            <span className="field-label-row">
+              Roth
+              <InfoTooltip text="Today's balance already inside a Roth IRA — already taxed, and never taxed again. Grows here every year by the return assumption; conversions add to it." />
+            </span>
+            <CurrencyInput value={household.startingBalances.roth} onChange={(v) => setBalance('roth', v)} />
           </label>
           <label>
-            Taxable
-            <input
-              type="number"
-              value={household.startingBalances.taxable}
-              onChange={(e) => setBalance('taxable', Number(e.target.value))}
-            />
+            <span className="field-label-row">
+              Brokerage (taxable account)
+              <InfoTooltip text="Today's balance in a regular (non-retirement) brokerage or savings account — engine and tax documents call this the 'taxable' account, meaning its gains are taxable each time you sell, not that this number itself is a tax figure. The plan draws from this account first to cover any spending or tax bill that wages, pension, RMDs, and Social Security don't fully cover." />
+            </span>
+            <CurrencyInput value={household.startingBalances.taxable} onChange={(v) => setBalance('taxable', v)} />
           </label>
           <label>
-            Taxable cost basis
-            <input
-              type="number"
+            <span className="field-label-row">
+              Brokerage cost basis
+              <InfoTooltip text="How much of the brokerage balance is original cost basis (what you paid for it) rather than investment gains. Withdrawals from this account are split proportionally between basis (not taxed again) and gains (taxed as capital gains) based on this ratio." />
+            </span>
+            <CurrencyInput
               value={household.startingBalances.taxableCostBasis}
-              onChange={(e) => setBalance('taxableCostBasis', Number(e.target.value))}
+              onChange={(v) => setBalance('taxableCostBasis', v)}
             />
           </label>
         </fieldset>
       </div>
+
+      {editingSpouse !== null && (
+        <Modal title="Edit name" onClose={() => setEditingSpouse(null)}>
+          <input
+            type="text"
+            autoFocus
+            placeholder={`Spouse ${editingSpouse + 1}`}
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveName();
+              if (e.key === 'Escape') setEditingSpouse(null);
+            }}
+          />
+          <div className="modal__actions">
+            <button type="button" onClick={() => setEditingSpouse(null)}>
+              Cancel
+            </button>
+            <button type="button" onClick={saveName}>
+              Save
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

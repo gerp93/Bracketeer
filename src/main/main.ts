@@ -13,6 +13,7 @@ import {
 } from './dbLocation';
 import { initDatabase } from './database/schema';
 import { ScenarioService } from './database/scenarioService';
+import { setupApplicationMenu, attachContextMenu } from './menu';
 import type { CreateScenarioInput, UpdateScenarioInput } from '../shared/types/scenario';
 import type { Database } from 'sql.js';
 
@@ -68,6 +69,8 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  attachContextMenu(mainWindow);
 }
 
 function setupAutoUpdater() {
@@ -165,6 +168,7 @@ app.whenReady().then(async () => {
 
   registerIPCHandlers();
 
+  setupApplicationMenu();
   createWindow();
   setupAutoUpdater();
 

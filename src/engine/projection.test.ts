@@ -5,8 +5,8 @@ import type { HouseholdInput, YearPlanInput } from './projectionTypes';
 function makeHousehold(overrides: Partial<HouseholdInput> = {}): HouseholdInput {
   return {
     spouses: [
-      { birthYear: 1960, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
-      { birthYear: 1961, ssBenefitAtFRA: 20_000, ssClaimingAge: 67 },
+      { name: 'Spouse 1', birthYear: 1960, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
+      { name: 'Spouse 2', birthYear: 1961, ssBenefitAtFRA: 20_000, ssClaimingAge: 67 },
     ],
     stateCode: 'WI', // flat-rate fallback, keeps these tests about the engine mechanics, not MN specifics
     flatRateStateFallbackRate: 0.05,
@@ -21,6 +21,7 @@ function makeHousehold(overrides: Partial<HouseholdInput> = {}): HouseholdInput 
       taxable: 200_000,
       taxableCostBasis: 150_000,
     },
+    priorMagiHistory: { twoYearsBefore: 0, oneYearBefore: 0 },
     ...overrides,
   };
 }
@@ -29,6 +30,7 @@ function flatYearPlans(household: HouseholdInput, conversionAmount = 0): YearPla
   return Array.from({ length: household.horizonYears }, (_, i) => ({
     year: household.startYear + i,
     conversionAmount,
+    rothWithdrawal: 0,
     wages: 0,
     pension: 0,
     otherOrdinaryIncome: 0,
@@ -65,16 +67,16 @@ describe('runProjection — IRMAA two-year lookback', () => {
   it('a high-MAGI year does not itself trigger IRMAA, but the year two years later does', () => {
     const household = makeHousehold({
       spouses: [
-        { birthYear: 1955, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
-        { birthYear: 1956, ssBenefitAtFRA: 20_000, ssClaimingAge: 67 },
+        { name: 'Spouse 1', birthYear: 1955, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
+        { name: 'Spouse 2', birthYear: 1956, ssBenefitAtFRA: 20_000, ssClaimingAge: 67 },
       ],
       horizonYears: 4,
     });
     const plans: YearPlanInput[] = [
-      { year: 2025, conversionAmount: 300_000, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
-      { year: 2026, conversionAmount: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
-      { year: 2027, conversionAmount: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
-      { year: 2028, conversionAmount: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
+      { year: 2025, conversionAmount: 300_000, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
+      { year: 2026, conversionAmount: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
+      { year: 2027, conversionAmount: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
+      { year: 2028, conversionAmount: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
     ];
     const summary = runProjection(household, plans);
     const y2025 = summary.years.find((y) => y.year === 2025)!;
@@ -94,8 +96,8 @@ describe("runProjection — the widow's penalty", () => {
   it('switches to single filing status the year after an assumed spouse death, and flags that year', () => {
     const household = makeHousehold({
       spouses: [
-        { birthYear: 1955, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
-        { birthYear: 1955, ssBenefitAtFRA: 20_000, assumedDeathYear: 2026, ssClaimingAge: 67 },
+        { name: 'Spouse 1', birthYear: 1955, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
+        { name: 'Spouse 2', birthYear: 1955, ssBenefitAtFRA: 20_000, assumedDeathYear: 2026, ssClaimingAge: 67 },
       ],
       horizonYears: 4,
     });
@@ -117,8 +119,8 @@ describe("runProjection — the widow's penalty", () => {
     const bothAlive = makeHousehold();
     const oneDied = makeHousehold({
       spouses: [
-        { birthYear: 1960, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
-        { birthYear: 1961, ssBenefitAtFRA: 20_000, ssClaimingAge: 67, assumedDeathYear: 2024 }, // dies before the horizon starts
+        { name: 'Spouse 1', birthYear: 1960, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
+        { name: 'Spouse 2', birthYear: 1961, ssBenefitAtFRA: 20_000, ssClaimingAge: 67, assumedDeathYear: 2024 }, // dies before the horizon starts
       ],
     });
     const bothAliveSummary = runProjection(bothAlive, flatYearPlans(bothAlive, 100_000));
@@ -140,5 +142,67 @@ describe('runProjection — terminal after-tax wealth', () => {
       summary.terminalBalances.traditional * 0.7 + summary.terminalBalances.roth + summary.terminalBalances.taxable,
       2
     );
+  });
+});
+
+describe('runProjection — Roth withdrawal', () => {
+  it('is tax-free: pulling from Roth instead of Brokerage leaves total tax unchanged when the Brokerage draw has no gain to realize', () => {
+    // taxableCostBasis == taxable, so however much gets pulled from
+    // Brokerage to cover the gap, it never realizes a capital gain —
+    // isolating the claim that the Roth withdrawal itself has zero tax
+    // effect, rather than an indirect one via a smaller Brokerage draw.
+    const household = makeHousehold({
+      startingBalances: {
+        traditional: 1_000_000,
+        traditionalBasis: 0,
+        roth: 100_000,
+        taxable: 200_000,
+        taxableCostBasis: 200_000,
+      },
+    });
+    const base = flatYearPlans(household, 0);
+    const withWithdrawal = base.map((p, i) => (i === 0 ? { ...p, rothWithdrawal: 20_000 } : p));
+
+    const baseSummary = runProjection(household, base);
+    const withdrawalSummary = runProjection(household, withWithdrawal);
+
+    expect(withdrawalSummary.years[0].rothWithdrawal).toBe(20_000);
+    expect(withdrawalSummary.years[0].totalTax).toBeCloseTo(baseSummary.years[0].totalTax, 2);
+    expect(withdrawalSummary.years[0].endingBalances.roth).toBeCloseTo(
+      baseSummary.years[0].endingBalances.roth - 20_000 * 1.05,
+      2
+    );
+  });
+
+  it('reduces how much has to come out of the Brokerage account to cover spending', () => {
+    const household = makeHousehold();
+    const noWithdrawal = flatYearPlans(household, 0).map((p, i) => (i === 0 ? { ...p, targetSpending: 90_000 } : p));
+    const withWithdrawal = noWithdrawal.map((p, i) =>
+      i === 0 ? { ...p, rothWithdrawal: 50_000 } : p
+    );
+
+    const noWithdrawalSummary = runProjection(household, noWithdrawal);
+    const withWithdrawalSummary = runProjection(household, withWithdrawal);
+
+    expect(withWithdrawalSummary.years[0].endingBalances.taxable).toBeGreaterThan(
+      noWithdrawalSummary.years[0].endingBalances.taxable
+    );
+  });
+
+  it('caps the withdrawal at the Roth balance at the start of the year', () => {
+    const household = makeHousehold({
+      startingBalances: {
+        traditional: 1_000_000,
+        traditionalBasis: 0,
+        roth: 10_000,
+        taxable: 200_000,
+        taxableCostBasis: 150_000,
+      },
+    });
+    const plans = flatYearPlans(household, 0).map((p, i) => (i === 0 ? { ...p, rothWithdrawal: 999_000 } : p));
+    const summary = runProjection(household, plans);
+
+    expect(summary.years[0].rothWithdrawal).toBe(10_000);
+    expect(summary.years[0].endingBalances.roth).toBeCloseTo(0, 5);
   });
 });

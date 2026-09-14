@@ -9,10 +9,15 @@ import { THEME_LABELS } from '../utils/themes';
  * main.ts since Phase 0/5 but had no UI surfacing them until now, which
  * the standard treats as an incomplete rollout, not a stylistic choice.
  */
+type UpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'error' | 'unsupported';
+
 export default function SettingsPanel() {
   const { currentTheme, setTheme, availableThemes } = useTheme();
   const [dbInfo, setDbInfo] = useState<{ path: string; isDefault: boolean; defaultPath: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
 
   const refresh = async () => {
     const info = await window.bracketeer.dbLocation.get();
@@ -21,7 +26,20 @@ export default function SettingsPanel() {
 
   useEffect(() => {
     refresh();
+    window.bracketeer.app.getVersion().then(setAppVersion);
   }, []);
+
+  const handleCheckForUpdates = async () => {
+    setUpdateStatus('checking');
+    setUpdateMessage(null);
+    const result = await window.bracketeer.updates.check();
+    setUpdateStatus(result.status as UpdateStatus);
+    if (result.status === 'available') {
+      setUpdateMessage(`Version ${result.version} is downloading in the background.`);
+    } else if (result.status === 'error') {
+      setUpdateMessage(result.message ?? 'Something went wrong.');
+    }
+  };
 
   const handleBrowseExisting = async () => {
     const path = await window.bracketeer.dbLocation.browseExisting();
@@ -45,6 +63,25 @@ export default function SettingsPanel() {
   return (
     <div className="panel">
       <h2>Settings</h2>
+
+      <section className="settings-section">
+        <h3>Updates</h3>
+        <p className="muted">{appVersion ? `You're running version ${appVersion}.` : 'Loading version…'}</p>
+        <div className="settings-actions">
+          <button
+            onClick={handleCheckForUpdates}
+            disabled={updateStatus === 'checking' || updateStatus === 'unsupported'}
+          >
+            {updateStatus === 'checking' ? 'Checking…' : 'Check for Updates'}
+          </button>
+        </div>
+        {updateStatus === 'not-available' && <p className="muted">You&rsquo;re up to date.</p>}
+        {updateStatus === 'available' && <p className="status-positive">{updateMessage}</p>}
+        {updateStatus === 'error' && <p className="status-negative">Check failed: {updateMessage}</p>}
+        {updateStatus === 'unsupported' && (
+          <p className="muted">Update checks are only available in a packaged build, not in dev mode.</p>
+        )}
+      </section>
 
       <section className="settings-section">
         <h3>Theme</h3>
