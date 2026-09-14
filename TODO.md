@@ -16,9 +16,16 @@ built yet.
   use the older living spouse's age against the combined traditional
   balance, a defensible but literal simplification of the per-account
   IRS rule).
-- Configurable withdrawal sourcing order (currently: taxable account funds
-  the spending + tax shortfall, traditional is only touched via RMD/
-  conversion) — requirements section 3.2 calls for this to be user-chosen.
+- Automatic withdrawal-sourcing-order choice (requirements section 3.2:
+  "which account funds the spending shortfall," implying a user-picked
+  preference order) is still not built — Brokerage remains the sole
+  automatic shortfall-funder. What v1 now has instead: an explicit
+  per-year Traditional withdrawal field (`traditionalWithdrawal`) the
+  user sets directly to pull spending cash from Traditional rather than
+  Brokerage, plus `targetSpending`/`discretionaryCapitalGains` are now
+  wired into the grid — that covers the "normal" retirement patterns
+  (RMD + voluntary IRA withdrawal, or draw-down from Brokerage) without
+  the fully automatic ordering the requirements doc originally sketched.
 - A drill-down view so any grid cell traces to the inputs that produced it
   (requirements section 3.5) — the current UI shows the numbers but not
   their derivation.

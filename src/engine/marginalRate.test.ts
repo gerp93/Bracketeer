@@ -33,6 +33,7 @@ function plansWithConversion(household: HouseholdInput, conversionByYear: Record
     return {
       year,
       conversionAmount: conversionByYear[year] ?? 0,
+      traditionalWithdrawal: 0,
       rothWithdrawal: 0,
       wages: 0,
       pension: 0,

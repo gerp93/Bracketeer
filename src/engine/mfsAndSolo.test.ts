@@ -36,6 +36,7 @@ function flatYearPlans(household: HouseholdInput, conversionAmount = 0): YearPla
   return Array.from({ length: household.horizonYears }, (_, i) => ({
     year: household.startYear + i,
     conversionAmount,
+    traditionalWithdrawal: 0,
     rothWithdrawal: 0,
     wages: 0,
     pension: 0,

@@ -75,23 +75,33 @@ export default function ProjectionGrid({
     (y) => Math.max(0, y.startingBalances.traditional - y.rmdAmount) < 0.5
   )?.year;
   const rothDepletedYear = summary.years.find((y) => y.startingBalances.roth < 0.5)?.year;
+  const brokerageDepletedYear = summary.years.find((y) => y.startingBalances.taxable < 0.5)?.year;
 
   return (
     <div className="panel">
       <h2>Projection</h2>
-      {(traditionalDepletedYear !== undefined || rothDepletedYear !== undefined) && (
+      {(traditionalDepletedYear !== undefined ||
+        rothDepletedYear !== undefined ||
+        brokerageDepletedYear !== undefined) && (
         <div className="projection-alert">
           {traditionalDepletedYear !== undefined && (
             <p>
-              Traditional has nothing left to convert starting in <strong>{traditionalDepletedYear}</strong> — the
-              Conversion cell is locked at $0 from that year on. Reduce an earlier year&rsquo;s conversion to free up
-              room.
+              Traditional has nothing left starting in <strong>{traditionalDepletedYear}</strong> — the Conversion
+              and Trad. w/d cells are both locked at $0 from that year on. Reduce an earlier year&rsquo;s conversion
+              or withdrawal to free up room.
             </p>
           )}
           {rothDepletedYear !== undefined && (
             <p>
               Roth has nothing left to withdraw starting in <strong>{rothDepletedYear}</strong> — the Roth w/d cell
               is locked at $0 from that year on.
+            </p>
+          )}
+          {brokerageDepletedYear !== undefined && (
+            <p>
+              Brokerage is empty starting in <strong>{brokerageDepletedYear}</strong> — spending or taxes beyond
+              what Roth/Traditional withdrawals and other income cover won&rsquo;t actually get funded from that year
+              on, even though Target spending stays whatever you typed in.
             </p>
           )}
         </div>
@@ -144,7 +154,14 @@ export default function ProjectionGrid({
                 Conversion
                 <InfoTooltip
                   placement="bottom"
-                  text="Editable. How much you're choosing to convert from Traditional to Roth this year — taxed as ordinary income now, automatically capped at what's left in Traditional after this year's RMD. Hover any cell's own icon for that row's available headroom — a highlighted cell means what you entered got capped."
+                  text="Editable. How much you're choosing to convert from Traditional to Roth this year — taxed as ordinary income now, automatically capped at what's left in Traditional after this year's RMD. Resolved before Trad. w/d, so a large conversion can leave less room for that column. Hover any cell's own icon for that row's available headroom — a highlighted cell means what you entered got capped."
+                />
+              </th>
+              <th>
+                Trad. w/d
+                <InfoTooltip
+                  placement="bottom"
+                  text="Editable. Money taken out of Traditional this year to spend, beyond the RMD — the normal 'live on IRA distributions' pattern, as opposed to Conversion (which moves money to Roth instead of your pocket). Taxed as ordinary income just like a conversion, and reduces the Traditional balance. Capped at what's left in Traditional after this year's RMD and Conversion — hover a cell's own icon for that row's headroom."
                 />
               </th>
               <th>
@@ -152,6 +169,27 @@ export default function ProjectionGrid({
                 <InfoTooltip
                   placement="bottom"
                   text="Editable. Money taken out of Roth this year to spend. Unlike every other income column, this is tax-free — it doesn't touch Fed./State tax, IRMAA, or Eff. rate — and it directly reduces what has to come out of Brokerage to cover spending. Capped at the Roth balance at the start of the year — hover a cell's own icon for that row's headroom."
+                />
+              </th>
+              <th>
+                Target spending
+                <InfoTooltip
+                  placement="bottom"
+                  text="Editable. Total cash you want available to spend this year, after tax. Whatever Wages, Pension, Other inc., RMD, SS, Roth w/d, and Trad. w/d don't cover — including this year's own tax bill — is drawn automatically from Brokerage (see Brokerage w/d)."
+                />
+              </th>
+              <th>
+                Extra cap. gains
+                <InfoTooltip
+                  placement="bottom"
+                  text="Editable. Long-term capital gains you choose to realize from Brokerage this year beyond whatever the spending shortfall already forces (e.g. deliberate gain harvesting). Taxed at LTCG rates, stacked on top of ordinary income."
+                />
+              </th>
+              <th>
+                Brokerage w/d
+                <InfoTooltip
+                  placement="bottom"
+                  text="Read-only. Actual dollars pulled from Brokerage this year to cover Target spending plus this year's tax bill, after Wages/Pension/Other inc./RMD/SS/Roth w/d/Trad. w/d are applied — capped at the Brokerage balance at the start of the year."
                 />
               </th>
               <th>
@@ -191,7 +229,7 @@ export default function ProjectionGrid({
                 Traditional
                 <InfoTooltip
                   placement="bottom"
-                  text="Read-only. Traditional account balance at year end, after this year's RMD, conversion, and growth."
+                  text="Read-only. Traditional account balance at year end, after this year's RMD, conversion, Trad. w/d, and growth."
                 />
               </th>
               <th>
@@ -283,6 +321,40 @@ export default function ProjectionGrid({
                     );
                   })()}
                   {(() => {
+                    const availableToWithdrawTraditional = Math.max(
+                      0,
+                      y.startingBalances.traditional - y.rmdAmount - y.conversionAmount
+                    );
+                    const isDepleted = availableToWithdrawTraditional < 0.5;
+                    const enteredTraditionalWithdrawal = plan?.traditionalWithdrawal ?? 0;
+                    const isCapped = !isDepleted && enteredTraditionalWithdrawal > y.traditionalWithdrawal + 0.5;
+                    return (
+                      <td
+                        onClick={(e) => e.stopPropagation()}
+                        className={isCapped ? 'is-capped' : isDepleted ? 'is-depleted' : ''}
+                      >
+                        <CurrencyInput
+                          value={enteredTraditionalWithdrawal}
+                          onChange={(v) => onYearPlanChange(y.year, { traditionalWithdrawal: v })}
+                          disabled={isDepleted}
+                        />
+                        <div className="cell-headroom">
+                          {formatCurrency(availableToWithdrawTraditional)} left
+                          <InfoTooltip
+                            placement="bottom"
+                            text={
+                              isDepleted
+                                ? "Nothing left in Traditional to withdraw this year — disabled. Reduce this year's conversion, or an earlier year's conversion/withdrawal, to free up room."
+                                : isCapped
+                                  ? `Only ${formatCurrency(y.traditionalWithdrawal)} was actually withdrawn this year — capped at what's left in Traditional (${formatCurrency(availableToWithdrawTraditional)}) after this year's RMD and Conversion. The rest of the ${formatCurrency(enteredTraditionalWithdrawal)} you entered wasn't applied.`
+                                  : `Up to ${formatCurrency(availableToWithdrawTraditional)} available to withdraw this year (Traditional ${formatCurrency(y.startingBalances.traditional)} minus this year's RMD ${formatCurrency(y.rmdAmount)} and Conversion ${formatCurrency(y.conversionAmount)}).`
+                            }
+                          />
+                        </div>
+                      </td>
+                    );
+                  })()}
+                  {(() => {
                     const availableToWithdraw = y.startingBalances.roth;
                     const isDepleted = availableToWithdraw < 0.5;
                     const enteredWithdrawal = plan?.rothWithdrawal ?? 0;
@@ -313,6 +385,19 @@ export default function ProjectionGrid({
                       </td>
                     );
                   })()}
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <CurrencyInput
+                      value={plan?.targetSpending ?? 0}
+                      onChange={(v) => onYearPlanChange(y.year, { targetSpending: v })}
+                    />
+                  </td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <CurrencyInput
+                      value={plan?.discretionaryCapitalGains ?? 0}
+                      onChange={(v) => onYearPlanChange(y.year, { discretionaryCapitalGains: v })}
+                    />
+                  </td>
+                  <td>{formatCurrency(y.brokerageWithdrawal)}</td>
                   <td>
                     <InfoTooltip placement="bottom" text={buildSsTooltip(y.socialSecurityDetail, y.socialSecurityBenefits, isSolo)}>
                       {formatCurrency(y.socialSecurityBenefits)}

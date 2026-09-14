@@ -31,6 +31,7 @@ function flatYearPlans(household: HouseholdInput, conversionAmount = 0): YearPla
   return Array.from({ length: household.horizonYears }, (_, i) => ({
     year: household.startYear + i,
     conversionAmount,
+    traditionalWithdrawal: 0,
     rothWithdrawal: 0,
     wages: 0,
     pension: 0,
@@ -74,10 +75,10 @@ describe('runProjection — IRMAA two-year lookback', () => {
       horizonYears: 4,
     });
     const plans: YearPlanInput[] = [
-      { year: 2025, conversionAmount: 300_000, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
-      { year: 2026, conversionAmount: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
-      { year: 2027, conversionAmount: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
-      { year: 2028, conversionAmount: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
+      { year: 2025, conversionAmount: 300_000, traditionalWithdrawal: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
+      { year: 2026, conversionAmount: 0, traditionalWithdrawal: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
+      { year: 2027, conversionAmount: 0, traditionalWithdrawal: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
+      { year: 2028, conversionAmount: 0, traditionalWithdrawal: 0, rothWithdrawal: 0, wages: 0, pension: 0, otherOrdinaryIncome: 0, discretionaryCapitalGains: 0, targetSpending: 60_000, returnAssumption: 0.05 },
     ];
     const summary = runProjection(household, plans);
     const y2025 = summary.years.find((y) => y.year === 2025)!;
@@ -205,5 +206,122 @@ describe('runProjection — Roth withdrawal', () => {
 
     expect(summary.years[0].rothWithdrawal).toBe(10_000);
     expect(summary.years[0].endingBalances.roth).toBeCloseTo(0, 5);
+  });
+});
+
+describe('runProjection — Traditional withdrawal (voluntary, beyond RMD, taken to spend)', () => {
+  it('unlike Roth, is taxable ordinary income: shifting the same cash need from a no-gain Brokerage draw to a Traditional withdrawal raises total tax', () => {
+    const household = makeHousehold({
+      startingBalances: {
+        traditional: 1_000_000,
+        traditionalBasis: 0,
+        roth: 100_000,
+        taxable: 200_000,
+        taxableCostBasis: 200_000, // zero embedded gain, so the baseline Brokerage draw is tax-free basis return
+      },
+    });
+    const base = flatYearPlans(household, 0).map((p, i) => (i === 0 ? { ...p, targetSpending: 90_000 } : p));
+    const withWithdrawal = base.map((p, i) => (i === 0 ? { ...p, traditionalWithdrawal: 20_000 } : p));
+
+    const baseSummary = runProjection(household, base);
+    const withdrawalSummary = runProjection(household, withWithdrawal);
+
+    expect(withdrawalSummary.years[0].traditionalWithdrawal).toBe(20_000);
+    expect(withdrawalSummary.years[0].totalTax).toBeGreaterThan(baseSummary.years[0].totalTax);
+  });
+
+  it('reduces how much has to come out of the Brokerage account to cover spending, same as a Roth withdrawal', () => {
+    const household = makeHousehold();
+    const noWithdrawal = flatYearPlans(household, 0).map((p, i) => (i === 0 ? { ...p, targetSpending: 90_000 } : p));
+    const withWithdrawal = noWithdrawal.map((p, i) =>
+      i === 0 ? { ...p, traditionalWithdrawal: 50_000 } : p
+    );
+
+    const noWithdrawalSummary = runProjection(household, noWithdrawal);
+    const withWithdrawalSummary = runProjection(household, withWithdrawal);
+
+    expect(withWithdrawalSummary.years[0].endingBalances.taxable).toBeGreaterThan(
+      noWithdrawalSummary.years[0].endingBalances.taxable
+    );
+  });
+
+  it('reduces the Traditional balance, unlike entering the same amount as other ordinary income', () => {
+    const household = makeHousehold();
+    const plans = flatYearPlans(household, 0).map((p, i) => (i === 0 ? { ...p, traditionalWithdrawal: 50_000 } : p));
+    const summary = runProjection(household, plans);
+    const rmd = summary.years[0].rmdAmount;
+
+    expect(summary.years[0].endingBalances.traditional).toBeCloseTo(
+      (household.startingBalances.traditional - rmd - 50_000) * 1.05,
+      2
+    );
+  });
+
+  it('caps the withdrawal at what is left in Traditional after this year\'s RMD and Conversion — Conversion is resolved first', () => {
+    const household = makeHousehold({
+      startingBalances: {
+        traditional: 100_000,
+        traditionalBasis: 0,
+        roth: 100_000,
+        taxable: 200_000,
+        taxableCostBasis: 150_000,
+      },
+    });
+    const plans = flatYearPlans(household, 60_000).map((p, i) =>
+      i === 0 ? { ...p, traditionalWithdrawal: 999_000 } : p
+    );
+    const summary = runProjection(household, plans);
+    const y0 = summary.years[0];
+
+    expect(y0.conversionAmount).toBe(60_000); // unaffected by the withdrawal request
+    expect(y0.traditionalWithdrawal).toBeCloseTo(100_000 - y0.rmdAmount - 60_000, 2);
+    expect(y0.endingBalances.traditional).toBeCloseTo(0, 5);
+  });
+
+  it('applies growth after subtracting the withdrawal, not before', () => {
+    const household = makeHousehold({
+      startingBalances: {
+        traditional: 500_000,
+        traditionalBasis: 0,
+        roth: 100_000,
+        taxable: 200_000,
+        taxableCostBasis: 150_000,
+      },
+    });
+    const plans = flatYearPlans(household, 0).map((p, i) =>
+      i === 0 ? { ...p, traditionalWithdrawal: 50_000, returnAssumption: 0.1 } : p
+    );
+    const summary = runProjection(household, plans);
+    const rmd = summary.years[0].rmdAmount;
+
+    expect(summary.years[0].endingBalances.traditional).toBeCloseTo(
+      (500_000 - rmd - 50_000) * 1.1,
+      2
+    );
+  });
+});
+
+describe('runProjection — Brokerage withdrawal (automatic, funds the spending + tax shortfall)', () => {
+  it('is exposed as its own field, consistent with the ending taxable balance', () => {
+    const household = makeHousehold();
+    const plans = flatYearPlans(household, 0).map((p, i) => (i === 0 ? { ...p, targetSpending: 90_000 } : p));
+    const summary = runProjection(household, plans);
+    const y0 = summary.years[0];
+
+    expect(y0.brokerageWithdrawal).toBeGreaterThan(0);
+    expect(y0.endingBalances.taxable).toBeCloseTo(
+      (household.startingBalances.taxable - y0.brokerageWithdrawal) * 1.05,
+      2
+    );
+  });
+
+  it('drops to zero once Traditional and Roth withdrawals fully cover the spending need', () => {
+    const household = makeHousehold();
+    const plans = flatYearPlans(household, 0).map((p, i) =>
+      i === 0 ? { ...p, targetSpending: 40_000, traditionalWithdrawal: 60_000 } : p
+    );
+    const summary = runProjection(household, plans);
+
+    expect(summary.years[0].brokerageWithdrawal).toBe(0);
   });
 });
