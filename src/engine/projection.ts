@@ -93,6 +93,13 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
       plan.conversionAmount,
       Math.max(0, startingBalancesThisYear.traditional - rmdAmount)
     );
+    // Conversion is resolved first (unchanged from before this field
+    // existed), so a voluntary withdrawal only gets whatever's left after
+    // RMD + Conversion have already claimed their share of Traditional.
+    const traditionalWithdrawal = Math.min(
+      plan.traditionalWithdrawal,
+      Math.max(0, startingBalancesThisYear.traditional - rmdAmount - conversionAmount)
+    );
     // Capped at the Roth balance at the START of the year — this year's own
     // conversion isn't treated as available to withdraw right back out.
     const rothWithdrawal = Math.min(plan.rothWithdrawal, startingBalancesThisYear.roth);
@@ -119,6 +126,13 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
 
     const stateModule = resolveStateTaxModule(household.stateCode, household.flatRateStateFallbackRate);
 
+    // The tax pipeline treats a voluntary Traditional withdrawal exactly
+    // like a conversion — both are ordinary income drawn pro-rata against
+    // traditionalBasis — they only diverge afterward in where the cash
+    // goes (Roth vs. spending), which the balance rollforward below
+    // handles separately.
+    const taxableTraditionalDistribution = conversionAmount + traditionalWithdrawal;
+
     // --- Pass 1: estimate tax assuming only discretionary gains, to size the cash need. ---
     const pass1 = computeYearTax(
       tables,
@@ -126,21 +140,29 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
       filingStatus,
       age65PlusCount,
       plan.wages + plan.pension + plan.otherOrdinaryIncome + rmdAmount,
-      conversionAmount,
+      taxableTraditionalDistribution,
       plan.discretionaryCapitalGains,
       ssBenefits,
       proRataNonTaxableFraction,
       year
     );
 
-    // Roth withdrawals are tax-free cash (unlike everything else in this
-    // sum), so they don't touch either tax pass above — they only reduce
-    // what's needed from the Brokerage account below.
+    // Roth withdrawals and the Traditional withdrawal are cash-in-hand
+    // (unlike the conversion, which moves money to Roth rather than
+    // funding spending), so both reduce what's needed from Brokerage
+    // below — the Traditional withdrawal's tax bill is still covered by
+    // this same cash pool via cashNeed, same as RMD's.
     const cashFromOrdinarySources =
-      plan.wages + plan.pension + plan.otherOrdinaryIncome + rmdAmount + ssBenefits + rothWithdrawal;
+      plan.wages +
+      plan.pension +
+      plan.otherOrdinaryIncome +
+      rmdAmount +
+      ssBenefits +
+      rothWithdrawal +
+      traditionalWithdrawal;
     const cashNeed = plan.targetSpending + pass1.federalResult.totalFederalTax + pass1.stateResult.stateTax;
     const shortfall = Math.max(0, cashNeed - cashFromOrdinarySources);
-    const withdrawal = Math.min(shortfall, startingBalancesThisYear.taxable);
+    const brokerageWithdrawal = Math.min(shortfall, startingBalancesThisYear.taxable);
     const taxableGainFraction =
       startingBalancesThisYear.taxable > 0
         ? Math.max(
@@ -148,7 +170,7 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
             1 - startingBalancesThisYear.taxableCostBasis / startingBalancesThisYear.taxable
           )
         : 0;
-    const gainFromWithdrawal = withdrawal * taxableGainFraction;
+    const gainFromWithdrawal = brokerageWithdrawal * taxableGainFraction;
     const totalCapitalGains = plan.discretionaryCapitalGains + gainFromWithdrawal;
 
     // --- Pass 2: recompute with the real capital gains figure. ---
@@ -158,7 +180,7 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
       filingStatus,
       age65PlusCount,
       plan.wages + plan.pension + plan.otherOrdinaryIncome + rmdAmount,
-      conversionAmount,
+      taxableTraditionalDistribution,
       totalCapitalGains,
       ssBenefits,
       proRataNonTaxableFraction,
@@ -177,14 +199,18 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
     lifetimeTaxPaid += totalTax;
 
     // --- Roll balances forward. ---
-    const traditionalBasisConsumed = proRataNonTaxableFraction * conversionAmount;
-    const nextTraditional = startingBalancesThisYear.traditional - rmdAmount - conversionAmount;
+    // Every withdrawal/conversion below is subtracted from its account
+    // BEFORE that year's growth multiplier is applied, for all three
+    // accounts — so this year's cash movements never earn a return, and
+    // next year's growth compounds only on what's actually still invested.
+    const traditionalBasisConsumed = proRataNonTaxableFraction * taxableTraditionalDistribution;
+    const nextTraditional = startingBalancesThisYear.traditional - rmdAmount - conversionAmount - traditionalWithdrawal;
     const nextTraditionalBasis = Math.max(0, startingBalancesThisYear.traditionalBasis - traditionalBasisConsumed);
     const nextRoth = startingBalancesThisYear.roth + conversionAmount - rothWithdrawal;
-    const nextTaxable = startingBalancesThisYear.taxable - withdrawal;
+    const nextTaxable = startingBalancesThisYear.taxable - brokerageWithdrawal;
     const taxableBasisConsumed =
       startingBalancesThisYear.taxable > 0
-        ? withdrawal * (startingBalancesThisYear.taxableCostBasis / startingBalancesThisYear.taxable)
+        ? brokerageWithdrawal * (startingBalancesThisYear.taxableCostBasis / startingBalancesThisYear.taxable)
         : 0;
     const nextTaxableBasis = Math.max(0, startingBalancesThisYear.taxableCostBasis - taxableBasisConsumed);
 
@@ -205,9 +231,11 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
       startingBalances: startingBalancesThisYear,
       rmdAmount,
       conversionAmount,
+      traditionalWithdrawal,
       rothWithdrawal,
       socialSecurityBenefits: ssBenefits,
       socialSecurityDetail,
+      brokerageWithdrawal,
       capitalGainsRealized: totalCapitalGains,
       federalResult: pass2.federalResult,
       stateResult: pass2.stateResult,

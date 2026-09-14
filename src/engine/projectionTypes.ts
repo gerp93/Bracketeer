@@ -53,6 +53,16 @@ export interface YearPlanInput {
   year: number;
   /** The Roth conversion amount being tested for this year — the one thing the user directly controls. */
   conversionAmount: number;
+  /**
+   * Voluntary withdrawal from Traditional this year, beyond the mandatory
+   * RMD — taken to spend rather than converted to Roth. Unlike
+   * conversionAmount, this cash directly offsets the year's spending need
+   * (reducing what's pulled from Brokerage), but like conversionAmount
+   * it's ordinary taxable income, drawn pro-rata against traditionalBasis.
+   * Capped at what's left in Traditional after this year's RMD and
+   * Conversion (Conversion is resolved first — see projection.ts).
+   */
+  traditionalWithdrawal: number;
   /** Money taken out of Roth this year to spend — unlike conversionAmount, this is tax-free income (no effect on AGI/MAGI/IRMAA) and directly offsets the year's cash need, reducing what's pulled from the Brokerage account. Capped at the Roth balance at the start of the year. */
   rothWithdrawal: number;
   wages: number;
@@ -96,9 +106,12 @@ export interface ProjectionYearResult {
   startingBalances: AccountBalances;
   rmdAmount: number;
   conversionAmount: number;
+  traditionalWithdrawal: number;
   rothWithdrawal: number;
   socialSecurityBenefits: number;
   socialSecurityDetail: SocialSecurityDetail;
+  /** Actual dollars pulled from Brokerage this year to cover the spending + tax shortfall — the automatic, non-editable counterpart to the withdrawal fields above; see targetSpending. */
+  brokerageWithdrawal: number;
   capitalGainsRealized: number;
   federalResult: FederalTaxResult;
   stateResult: StateTaxResult;

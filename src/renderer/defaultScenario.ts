@@ -32,6 +32,7 @@ function defaultYearPlan(year: number, returnAssumption: number = DEFAULT_RETURN
   return {
     year,
     conversionAmount: 0,
+    traditionalWithdrawal: 0,
     rothWithdrawal: 0,
     wages: 0,
     pension: 0,
@@ -85,7 +86,11 @@ export function normalizeHousehold(household: HouseholdInput): HouseholdInput {
 }
 
 export function normalizeYearPlan(plan: YearPlanInput): YearPlanInput {
-  return { ...plan, rothWithdrawal: plan.rothWithdrawal ?? 0 };
+  return {
+    ...plan,
+    rothWithdrawal: plan.rothWithdrawal ?? 0,
+    traditionalWithdrawal: plan.traditionalWithdrawal ?? 0,
+  };
 }
 
 export function normalizeYearPlans(plans: YearPlanInput[]): YearPlanInput[] {
