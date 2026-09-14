@@ -22,6 +22,7 @@ import ComparePage from './components/ComparePage';
 import SettingsPanel from './components/SettingsPanel';
 import DataSourcesPage from './components/DataSourcesPage';
 import { DATA_LAST_UPDATED } from '../engine/data/sources';
+import logo from './assets/logo.png';
 
 type Tab = 'plan' | 'compare' | 'sources' | 'settings';
 
@@ -97,7 +98,10 @@ function AppShell() {
     <div className="app-shell">
       <header className="app-shell__header">
         <div className="app-shell__title-row">
-          <h1>Bracketeer</h1>
+          <div className="app-shell__brand">
+            <img src={logo} alt="" className="app-shell__logo" />
+            <h1>Bracketeer</h1>
+          </div>
           <nav className="app-shell__tabs">
             <button className={tab === 'plan' ? 'is-active' : ''} onClick={() => setTab('plan')}>
               Plan

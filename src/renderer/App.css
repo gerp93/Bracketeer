@@ -20,6 +20,17 @@
   flex-wrap: wrap;
 }
 
+.app-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.app-shell__logo {
+  width: 32px;
+  height: 32px;
+}
+
 .app-shell__header h1 {
   margin: 0;
   font-size: 1.6rem;

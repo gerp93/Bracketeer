@@ -55,10 +55,6 @@ built yet.
   Security subtraction cap/phase-out-start figures. Check each against its
   cited source in the Data Sources tab before trusting it for a real
   decision.
-- **No `assets/logo.png` yet** — deliberately deferred, per direction to
-  worry about the logo later. `scripts/generate-icons.js` is ready to run
-  the moment a source mark exists; every consuming surface (window icon,
-  in-app usage, packaged binary icon) is already wired to read from it.
 - One hand-computed end-to-end scenario is validated
   (`src/engine/handComputedScenario.test.ts` — a full MFJ wages+conversion
   return checked against a by-hand federal + Minnesota calculation, not
