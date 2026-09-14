@@ -6,7 +6,9 @@ import InfoTooltip from './InfoTooltip';
 import CurrencyInput from './CurrencyInput';
 
 function formatFilingStatus(status: FilingStatus): string {
-  return status === 'mfj' ? 'MFJ' : 'Single';
+  if (status === 'mfj') return 'MFJ';
+  if (status === 'mfs') return 'MFS';
+  return 'Single';
 }
 
 interface Props {
@@ -15,6 +17,8 @@ interface Props {
   onYearPlanChange: (year: number, patch: Partial<YearPlanInput>) => void;
   selectedYear: number | null;
   onSelectYear: (year: number) => void;
+  /** True for a solo (never-married) household — spouse[1] in socialSecurityDetail is a phantom placeholder and shouldn't appear in the SS tooltip at all. */
+  isSolo: boolean;
 }
 
 function formatAdjustment(factor: number): string {
@@ -31,8 +35,11 @@ function spouseLine(s: SpouseSsDetail): string {
 }
 
 /** Builds the SS cell's tooltip text — the year-by-year arithmetic behind the household total shown in the column. */
-function buildSsTooltip(detail: SocialSecurityDetail, total: number): string {
+function buildSsTooltip(detail: SocialSecurityDetail, total: number, isSolo: boolean): string {
   const { spouseA, spouseB, isSurvivorBenefit } = detail;
+  if (isSolo) {
+    return spouseLine(spouseA);
+  }
   if (!isSurvivorBenefit) {
     return `${spouseLine(spouseA)}\n${spouseLine(spouseB)}\nHousehold total: ${formatCurrency(total)}`;
   }
@@ -60,12 +67,35 @@ export default function ProjectionGrid({
   onYearPlanChange,
   selectedYear,
   onSelectYear,
+  isSolo,
 }: Props) {
   const planByYear = new Map(yearPlans.map((p) => [p.year, p]));
+
+  const traditionalDepletedYear = summary.years.find(
+    (y) => Math.max(0, y.startingBalances.traditional - y.rmdAmount) < 0.5
+  )?.year;
+  const rothDepletedYear = summary.years.find((y) => y.startingBalances.roth < 0.5)?.year;
 
   return (
     <div className="panel">
       <h2>Projection</h2>
+      {(traditionalDepletedYear !== undefined || rothDepletedYear !== undefined) && (
+        <div className="projection-alert">
+          {traditionalDepletedYear !== undefined && (
+            <p>
+              Traditional has nothing left to convert starting in <strong>{traditionalDepletedYear}</strong> — the
+              Conversion cell is locked at $0 from that year on. Reduce an earlier year&rsquo;s conversion to free up
+              room.
+            </p>
+          )}
+          {rothDepletedYear !== undefined && (
+            <p>
+              Roth has nothing left to withdraw starting in <strong>{rothDepletedYear}</strong> — the Roth w/d cell
+              is locked at $0 from that year on.
+            </p>
+          )}
+        </div>
+      )}
       <div className="grid-scroll">
         <table className="projection-grid">
           <thead>
@@ -114,14 +144,14 @@ export default function ProjectionGrid({
                 Conversion
                 <InfoTooltip
                   placement="bottom"
-                  text="Editable. How much you're choosing to convert from Traditional to Roth this year — taxed as ordinary income now, automatically capped at what's left in Traditional after this year's RMD."
+                  text="Editable. How much you're choosing to convert from Traditional to Roth this year — taxed as ordinary income now, automatically capped at what's left in Traditional after this year's RMD. Hover any cell's own icon for that row's available headroom — a highlighted cell means what you entered got capped."
                 />
               </th>
               <th>
                 Roth w/d
                 <InfoTooltip
                   placement="bottom"
-                  text="Editable. Money taken out of Roth this year to spend. Unlike every other income column, this is tax-free — it doesn't touch Fed./State tax, IRMAA, or Eff. rate — and it directly reduces what has to come out of Brokerage to cover spending. Capped at the Roth balance at the start of the year."
+                  text="Editable. Money taken out of Roth this year to spend. Unlike every other income column, this is tax-free — it doesn't touch Fed./State tax, IRMAA, or Eff. rate — and it directly reduces what has to come out of Brokerage to cover spending. Capped at the Roth balance at the start of the year — hover a cell's own icon for that row's headroom."
                 />
               </th>
               <th>
@@ -192,7 +222,7 @@ export default function ProjectionGrid({
                   onClick={() => onSelectYear(y.year)}
                 >
                   <td>{y.year}</td>
-                  <td>{y.ages.join(' / ')}</td>
+                  <td>{isSolo ? y.ages[0] : y.ages.join(' / ')}</td>
                   <td>
                     {y.isWidowPenaltyYear ? (
                       <InfoTooltip placement="bottom" text="First year as a single filer after a spouse's assumed death">
@@ -221,20 +251,70 @@ export default function ProjectionGrid({
                     />
                   </td>
                   <td>{formatCurrency(y.rmdAmount)}</td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <CurrencyInput
-                      value={plan?.conversionAmount ?? 0}
-                      onChange={(v) => onYearPlanChange(y.year, { conversionAmount: v })}
-                    />
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <CurrencyInput
-                      value={plan?.rothWithdrawal ?? 0}
-                      onChange={(v) => onYearPlanChange(y.year, { rothWithdrawal: v })}
-                    />
-                  </td>
+                  {(() => {
+                    const availableToConvert = Math.max(0, y.startingBalances.traditional - y.rmdAmount);
+                    const isDepleted = availableToConvert < 0.5;
+                    const enteredConversion = plan?.conversionAmount ?? 0;
+                    const isCapped = !isDepleted && enteredConversion > y.conversionAmount + 0.5;
+                    return (
+                      <td
+                        onClick={(e) => e.stopPropagation()}
+                        className={isCapped ? 'is-capped' : isDepleted ? 'is-depleted' : ''}
+                      >
+                        <CurrencyInput
+                          value={enteredConversion}
+                          onChange={(v) => onYearPlanChange(y.year, { conversionAmount: v })}
+                          disabled={isDepleted}
+                        />
+                        <div className="cell-headroom">
+                          {formatCurrency(availableToConvert)} left
+                          <InfoTooltip
+                            placement="bottom"
+                            text={
+                              isDepleted
+                                ? "Nothing left in Traditional to convert this year — disabled. Reduce an earlier year's conversion to free up room."
+                                : isCapped
+                                  ? `Only ${formatCurrency(y.conversionAmount)} was actually converted this year — capped at what's left in Traditional (${formatCurrency(availableToConvert)}) after this year's RMD. The rest of the ${formatCurrency(enteredConversion)} you entered wasn't applied.`
+                                  : `Up to ${formatCurrency(availableToConvert)} available to convert this year (Traditional ${formatCurrency(y.startingBalances.traditional)} minus this year's RMD ${formatCurrency(y.rmdAmount)}).`
+                            }
+                          />
+                        </div>
+                      </td>
+                    );
+                  })()}
+                  {(() => {
+                    const availableToWithdraw = y.startingBalances.roth;
+                    const isDepleted = availableToWithdraw < 0.5;
+                    const enteredWithdrawal = plan?.rothWithdrawal ?? 0;
+                    const isCapped = !isDepleted && enteredWithdrawal > y.rothWithdrawal + 0.5;
+                    return (
+                      <td
+                        onClick={(e) => e.stopPropagation()}
+                        className={isCapped ? 'is-capped' : isDepleted ? 'is-depleted' : ''}
+                      >
+                        <CurrencyInput
+                          value={enteredWithdrawal}
+                          onChange={(v) => onYearPlanChange(y.year, { rothWithdrawal: v })}
+                          disabled={isDepleted}
+                        />
+                        <div className="cell-headroom">
+                          {formatCurrency(availableToWithdraw)} left
+                          <InfoTooltip
+                            placement="bottom"
+                            text={
+                              isDepleted
+                                ? 'Nothing left in Roth to withdraw this year — disabled.'
+                                : isCapped
+                                  ? `Only ${formatCurrency(y.rothWithdrawal)} was actually withdrawn this year — capped at the Roth balance at the start of the year (${formatCurrency(availableToWithdraw)}). The rest of the ${formatCurrency(enteredWithdrawal)} you entered wasn't applied.`
+                                  : `Up to ${formatCurrency(availableToWithdraw)} available to withdraw from Roth this year.`
+                            }
+                          />
+                        </div>
+                      </td>
+                    );
+                  })()}
                   <td>
-                    <InfoTooltip placement="bottom" text={buildSsTooltip(y.socialSecurityDetail, y.socialSecurityBenefits)}>
+                    <InfoTooltip placement="bottom" text={buildSsTooltip(y.socialSecurityDetail, y.socialSecurityBenefits, isSolo)}>
                       {formatCurrency(y.socialSecurityBenefits)}
                     </InfoTooltip>
                   </td>

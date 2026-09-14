@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { Scenario } from '../../shared/types/scenario';
 import type { HouseholdInput, YearPlanInput } from '../../engine/projectionTypes';
 
+const COLLAPSED_STORAGE_KEY = 'bracketeer.scenarioSidebarCollapsed';
+
 interface Props {
   scenarios: Scenario[];
   currentScenarioId: string | null;
@@ -33,11 +35,30 @@ export default function ScenarioSidebar({
 }: Props) {
   const [name, setName] = useState('');
   const [status, setStatus] = useState('');
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     const current = scenarios.find((s) => s.id === currentScenarioId);
     setName(current?.name ?? '');
   }, [currentScenarioId, scenarios]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(COLLAPSED_STORAGE_KEY, String(next));
+      } catch {
+        // per-viewer convenience only — fine if it doesn't persist
+      }
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -64,16 +85,41 @@ export default function ScenarioSidebar({
     await onRefresh();
   };
 
+  if (collapsed) {
+    return (
+      <aside className="scenario-sidebar scenario-sidebar--collapsed">
+        <button
+          className="scenario-sidebar__collapse-toggle"
+          title="Show scenarios"
+          aria-label="Show scenarios"
+          onClick={toggleCollapsed}
+        >
+          ›
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside className="scenario-sidebar">
       <div className="scenario-sidebar__header">
         <h2>Scenarios</h2>
-        <button
-          title="Start a brand-new scenario from a blank slate, without touching any saved scenario."
-          onClick={onNew}
-        >
-          + New
-        </button>
+        <div className="scenario-sidebar__header-actions">
+          <button
+            title="Start a brand-new scenario from a blank slate, without touching any saved scenario."
+            onClick={onNew}
+          >
+            + New
+          </button>
+          <button
+            className="scenario-sidebar__collapse-toggle"
+            title="Hide scenarios"
+            aria-label="Hide scenarios"
+            onClick={toggleCollapsed}
+          >
+            ‹
+          </button>
+        </div>
       </div>
 
       <ul className="scenario-tabs">

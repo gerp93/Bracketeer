@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Theme, AVAILABLE_THEMES, getStoredTheme, saveTheme, applyTheme } from '../utils/themes';
+import { Theme, AVAILABLE_THEMES, DEFAULT_THEME, getStoredTheme, saveTheme, applyTheme } from '../utils/themes';
 
 interface ThemeContextType {
   currentTheme: Theme | null;
@@ -10,7 +10,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [currentTheme, setCurrentTheme] = useState<Theme | null>(() => getStoredTheme() ?? AVAILABLE_THEMES[0]);
+  const [currentTheme, setCurrentTheme] = useState<Theme | null>(() => getStoredTheme() ?? DEFAULT_THEME);
 
   useEffect(() => {
     applyTheme(currentTheme);
@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const handleSetTheme = (theme: Theme | null) => {
     setCurrentTheme(theme);
-    saveTheme(theme || AVAILABLE_THEMES[0]);
+    saveTheme(theme || DEFAULT_THEME);
   };
 
   return (

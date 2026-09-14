@@ -1,8 +1,12 @@
 // Ported from Sweeper's src/renderer/utils/themes.ts — the reference
 // pattern for exposing VisualAssault's full theme catalog with a picker,
-// not just hardcoding one theme class. Keep this list in sync with
-// VisualAssault's themes.css (vendored @ v0.2.0) if that package adds themes.
+// not just hardcoding one theme class. Keep the stylized entries in sync
+// with VisualAssault's themes.css (vendored @ v0.2.0) if that package adds
+// themes. 'light-theme'/'dark-theme' are Bracketeer-only additions, not
+// from VisualAssault — see localThemes.css for why.
 export const AVAILABLE_THEMES = [
+  'dark-theme',
+  'light-theme',
   'blue-oval-theme',
   'bubblegum-theme',
   'commander-keen-theme',
@@ -21,7 +25,12 @@ export const AVAILABLE_THEMES = [
 
 export type Theme = (typeof AVAILABLE_THEMES)[number];
 
+/** Default for anyone who's never picked a theme — a first-time download starts in Dark. */
+export const DEFAULT_THEME: Theme = 'dark-theme';
+
 export const THEME_LABELS: Record<Theme, string> = {
+  'dark-theme': 'Dark',
+  'light-theme': 'Light',
   'blue-oval-theme': 'Blue Oval',
   'bubblegum-theme': 'Bubblegum',
   'commander-keen-theme': 'Commander Keen',

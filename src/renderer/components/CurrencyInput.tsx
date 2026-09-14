@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 interface Props {
   value: number;
   onChange: (value: number) => void;
+  disabled?: boolean;
 }
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
@@ -18,7 +19,7 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
  * blur) so the live, recompute-as-you-type feel elsewhere in the app still
  * holds for these fields.
  */
-export default function CurrencyInput({ value, onChange }: Props) {
+export default function CurrencyInput({ value, onChange, disabled }: Props) {
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState(String(value));
 
@@ -45,6 +46,7 @@ export default function CurrencyInput({ value, onChange }: Props) {
       onFocus={handleFocus}
       onBlur={() => setFocused(false)}
       onChange={handleChange}
+      disabled={disabled}
     />
   );
 }

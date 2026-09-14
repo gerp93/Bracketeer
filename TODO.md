@@ -27,19 +27,38 @@ built yet.
 - Exact fixed-point solve for the year's cash need instead of the two-pass
   approximation in `projection.ts` (documented there; close enough for
   planning, not exact to the dollar in an extreme edge case).
+- OBBBA (July 2025) added a new, separate $6,000-per-taxpayer-65+ "senior
+  deduction" on top of the existing (much smaller) additional standard
+  deduction for 65+ — income-phased, not yet modeled at all. Found
+  2026-09-14 while fixing the standard deduction figures below; a real new
+  feature, not a data fix.
 
 ## Fixes / gaps
 
+- **Federal and Minnesota figures corrected 2026-09-14** (found while
+  researching MFS on 2026-09-13, fixed the next day): federal standard
+  deduction ($30,000/$15,000 → $31,500/$15,750 — OBBBA, signed July 2025,
+  retroactively raised the 2025 figure after the original Rev. Proc.
+  2024-40 had already set it), the federal MFJ ordinary brackets (full set,
+  derived as exactly double the independently-confirmed MFS breakpoints),
+  the federal Single top bracket only ($609,350 → $626,350), and
+  Minnesota's standard deduction base/phaseout-start ($29,150/$14,575 →
+  $29,900/$14,950; $220,650 → $238,950, now consistent with MFS's
+  $119,475 as exactly half). Verified directly against IRS.gov and the
+  Minnesota Dept. of Revenue's own 2025 chart — see the Data Sources tab
+  for each citation.
+- **Still not independently re-verified** (left as the original Rev. Proc.
+  2024-40 figures — may or may not also be affected by OBBBA or other
+  changes, just not checked yet): Single's non-top ordinary bracket
+  breakpoints (only the top one was confirmed), the federal 65+ additional
+  standard deduction amounts ($1,550/$1,950), and Minnesota's Social
+  Security subtraction cap/phase-out-start figures. Check each against its
+  cited source in the Data Sources tab before trusting it for a real
+  decision.
 - **No `assets/logo.png` yet** — deliberately deferred, per direction to
   worry about the logo later. `scripts/generate-icons.js` is ready to run
   the moment a source mark exists; every consuming surface (window icon,
   in-app usage, packaged binary icon) is already wired to read from it.
-- Minnesota tax figures (brackets, SS subtraction cap/phase-out,
-  standard-deduction phase-down) are 2025 estimates from public sources —
-  **need verification against Minnesota Department of Revenue publications**
-  before being relied on for a real decision. Federal figures likewise need
-  a spot-check against the IRS's own Rev. Proc. Both are called out in the
-  app's own footer disclaimer in the meantime.
 - One hand-computed end-to-end scenario is validated
   (`src/engine/handComputedScenario.test.ts` — a full MFJ wages+conversion
   return checked against a by-hand federal + Minnesota calculation, not

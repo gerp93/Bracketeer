@@ -23,13 +23,13 @@ describe('computeFederalTax — a no-income household owes nothing', () => {
 
 describe('computeFederalTax — the standard deduction absorbs low income first', () => {
   it('income under the deduction owes nothing', () => {
-    // MFJ 2025: 30,000 + 2*1,550 = 33,100 standard deduction.
-    const result = computeFederalTax(FEDERAL_TAX_TABLES_2025, { ...baseInput, otherOrdinaryIncome: 33_000 });
+    // MFJ 2025: 31,500 + 2*1,550 = 34,600 standard deduction.
+    const result = computeFederalTax(FEDERAL_TAX_TABLES_2025, { ...baseInput, otherOrdinaryIncome: 34_500 });
     expect(result.totalFederalTax).toBe(0);
   });
 
   it('one dollar over the deduction is taxed at the bottom rate', () => {
-    const result = computeFederalTax(FEDERAL_TAX_TABLES_2025, { ...baseInput, otherOrdinaryIncome: 33_101 });
+    const result = computeFederalTax(FEDERAL_TAX_TABLES_2025, { ...baseInput, otherOrdinaryIncome: 34_601 });
     expect(result.totalFederalTax).toBeCloseTo(0.1, 5);
   });
 });

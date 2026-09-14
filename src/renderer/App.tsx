@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import './themes.css';
+import './localThemes.css';
 import './App.css';
 import { runProjection } from '../engine/projection';
 import type { HouseholdInput, YearPlanInput } from '../engine/projectionTypes';
@@ -10,6 +11,7 @@ import {
   normalizeHousehold,
   normalizeYearPlans,
   reconcileYearPlans,
+  setReturnAssumptionForAllYears,
 } from './defaultScenario';
 import { ThemeProvider } from './context/ThemeContext';
 import HouseholdForm from './components/HouseholdForm';
@@ -18,8 +20,10 @@ import MarginalRatePanel from './components/MarginalRatePanel';
 import ScenarioSidebar from './components/ScenarioSidebar';
 import ComparePage from './components/ComparePage';
 import SettingsPanel from './components/SettingsPanel';
+import DataSourcesPage from './components/DataSourcesPage';
+import { DATA_LAST_UPDATED } from '../engine/data/sources';
 
-type Tab = 'plan' | 'compare' | 'settings';
+type Tab = 'plan' | 'compare' | 'sources' | 'settings';
 
 export default function App() {
   return (
@@ -32,7 +36,7 @@ export default function App() {
 function AppShell() {
   const [household, setHousehold] = useState<HouseholdInput>(() => makeDefaultHousehold());
   const [yearPlans, setYearPlans] = useState<YearPlanInput[]>(() => makeDefaultYearPlans(household));
-  const [selectedYear, setSelectedYear] = useState<number | null>(household.startYear);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [currentScenarioId, setCurrentScenarioId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('plan');
 
@@ -55,12 +59,17 @@ function AppShell() {
     setYearPlans((prev) => prev.map((p) => (p.year === year ? { ...p, ...patch } : p)));
   };
 
+  const returnAssumption = yearPlans[0]?.returnAssumption ?? 0.05;
+  const handleReturnAssumptionChange = (rate: number) => {
+    setYearPlans((prev) => setReturnAssumptionForAllYears(prev, rate));
+  };
+
   const handleLoadScenario = (scenario: Scenario) => {
     const household = normalizeHousehold(scenario.household);
     setHousehold(household);
     setYearPlans(normalizeYearPlans(scenario.yearPlans));
     setCurrentScenarioId(scenario.id);
-    setSelectedYear(household.startYear);
+    setSelectedYear(null);
     setTab('plan');
   };
 
@@ -69,7 +78,7 @@ function AppShell() {
     setHousehold(fresh);
     setYearPlans(makeDefaultYearPlans(fresh));
     setCurrentScenarioId(null);
-    setSelectedYear(fresh.startYear);
+    setSelectedYear(null);
     setTab('plan');
   };
 
@@ -95,6 +104,9 @@ function AppShell() {
             </button>
             <button className={tab === 'compare' ? 'is-active' : ''} onClick={() => setTab('compare')}>
               Compare
+            </button>
+            <button className={tab === 'sources' ? 'is-active' : ''} onClick={() => setTab('sources')}>
+              Data Sources
             </button>
             <button className={tab === 'settings' ? 'is-active' : ''} onClick={() => setTab('settings')}>
               Settings
@@ -125,9 +137,16 @@ function AppShell() {
 
           {tab === 'compare' && <ComparePage scenarios={scenarios} />}
 
+          {tab === 'sources' && <DataSourcesPage />}
+
           {tab === 'plan' && (
             <>
-              <HouseholdForm household={household} onChange={handleHouseholdChange} />
+              <HouseholdForm
+                household={household}
+                onChange={handleHouseholdChange}
+                returnAssumption={returnAssumption}
+                onReturnAssumptionChange={handleReturnAssumptionChange}
+              />
 
               {summary ? (
                 <ProjectionGrid
@@ -136,6 +155,7 @@ function AppShell() {
                   onYearPlanChange={handleYearPlanChange}
                   selectedYear={selectedYear}
                   onSelectYear={setSelectedYear}
+                  isSolo={household.householdType === 'single'}
                 />
               ) : (
                 <div className="panel">
@@ -164,6 +184,10 @@ function AppShell() {
       </div>
 
       <footer className="app-shell__disclaimer">
+        <button type="button" className="footer-data-banner" onClick={() => setTab('sources')}>
+          Tax figures last updated/verified: <strong>{DATA_LAST_UPDATED}</strong> — see Data Sources for what&rsquo;s
+          checked and what isn&rsquo;t →
+        </button>
         <strong>Bracketeer is a modeling and educational tool only.</strong> It does not provide tax, legal,
         financial, or investment advice, and nothing it displays is a recommendation to convert any amount in any
         year — every number here is a projection based on assumptions you control, not a guarantee. Federal tax,

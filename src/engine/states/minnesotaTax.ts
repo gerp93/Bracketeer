@@ -1,4 +1,4 @@
-import type { StateTaxInput, StateTaxModule, StateTaxResult } from '../types';
+import type { FilingStatus, StateTaxInput, StateTaxModule, StateTaxResult } from '../types';
 import { taxOnAmount } from '../bracketMath';
 import {
   MN_BRACKETS_2025,
@@ -63,7 +63,7 @@ export function createMinnesotaTaxModule(): StateTaxModule {
   };
 }
 
-function computeMnStandardDeduction(federalAgi: number, filingStatus: 'mfj' | 'single'): number {
+function computeMnStandardDeduction(federalAgi: number, filingStatus: FilingStatus): number {
   const base = MN_STANDARD_DEDUCTION_BASE_2025[filingStatus];
   const phaseoutStart = MN_STANDARD_DEDUCTION_PHASEOUT_START_2025[filingStatus];
   if (federalAgi <= phaseoutStart) return base;
@@ -76,7 +76,7 @@ function computeMnStandardDeduction(federalAgi: number, filingStatus: 'mfj' | 's
 function computeMnSsSubtraction(
   federalAgi: number,
   ssBenefits: number,
-  filingStatus: 'mfj' | 'single',
+  filingStatus: FilingStatus,
   notes: string[]
 ): number {
   if (ssBenefits <= 0) return 0;
@@ -86,7 +86,7 @@ function computeMnSsSubtraction(
 
   if (federalAgi <= phaseoutStart) return maxSubtraction;
 
-  const reduction = (federalAgi - phaseoutStart) * MN_SS_SUBTRACTION_PHASEOUT_RATE;
+  const reduction = (federalAgi - phaseoutStart) * MN_SS_SUBTRACTION_PHASEOUT_RATE[filingStatus];
   const subtraction = Math.max(0, maxSubtraction - reduction);
 
   if (subtraction < maxSubtraction) {

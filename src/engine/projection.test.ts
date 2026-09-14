@@ -4,6 +4,7 @@ import type { HouseholdInput, YearPlanInput } from './projectionTypes';
 
 function makeHousehold(overrides: Partial<HouseholdInput> = {}): HouseholdInput {
   return {
+    householdType: 'mfj',
     spouses: [
       { name: 'Spouse 1', birthYear: 1960, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
       { name: 'Spouse 2', birthYear: 1961, ssBenefitAtFRA: 20_000, ssClaimingAge: 67 },

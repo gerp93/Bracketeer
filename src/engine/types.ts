@@ -5,7 +5,7 @@
 // rather than by a lint rule yet (TODO: add one once the engine has
 // enough shape to write it against).
 
-export type FilingStatus = 'mfj' | 'single';
+export type FilingStatus = 'mfj' | 'single' | 'mfs';
 
 export interface TaxYearTables {
   year: number;

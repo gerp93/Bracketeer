@@ -55,10 +55,15 @@ Explicitly deferred, to be recorded in the app repo's `TODO.md`:
 
 ### 3.1 Household & accounts
 
-- Filing status: **MFJ only in v1.** Single filing status is still
-  implemented in the engine, because the surviving spouse reverts to it
-  (see the widow's penalty below) — but it is not user-selectable as a
-  starting status. MFS and HoH are out of scope.
+- Filing status: **MFJ, MFS, and Single (no spouse) are all user-selectable
+  starting statuses** (`householdType` on the household). Single reached
+  this way is distinct from the widow's-penalty transition below — a solo
+  household never shows that flag, since there was no marriage to lose.
+  HoH remains out of scope. See `MFS_SOLO_AND_DATA_SOURCES_PLAN.md` for the
+  design (household composition kept structurally separate from the
+  original MFJ/widow's-penalty logic — see `projection.ts`'s
+  `resolveEffectiveSpouses`) and `src/engine/mfsAndSolo.test.ts` for
+  coverage.
 - Birthdate per spouse — drives RMD start age, Medicare eligibility at 65,
   SS claiming age, and the 59-1/2 penalty boundary
 - State of residence (v1: Minnesota implemented; others via flat-rate
@@ -249,8 +254,9 @@ Internal structure:
 ## 6. Settled decisions
 
 - **Name:** Bracketeer.
-- **Filing status:** MFJ only as a user selection; single implemented
-  internally for the surviving spouse.
+- **Filing status:** MFJ, MFS, and Single (no spouse) are all
+  user-selectable; the widow's-penalty transition to single remains
+  automatic and distinct from a Single household chosen from the start.
 - **Widow's penalty:** in scope for v1 (section 3.2).
 - **States:** pluggable from day one, Minnesota the only implementation,
   flat-rate fallback elsewhere.

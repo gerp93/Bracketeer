@@ -4,6 +4,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 export function makeDefaultHousehold(): HouseholdInput {
   return {
+    householdType: 'mfj',
     spouses: [
       { name: 'Spouse 1', birthYear: CURRENT_YEAR - 62, ssBenefitAtFRA: 30_000, ssClaimingAge: 67 },
       { name: 'Spouse 2', birthYear: CURRENT_YEAR - 60, ssBenefitAtFRA: 24_000, ssClaimingAge: 67 },
@@ -25,7 +26,9 @@ export function makeDefaultHousehold(): HouseholdInput {
   };
 }
 
-function defaultYearPlan(year: number): YearPlanInput {
+const DEFAULT_RETURN_ASSUMPTION = 0.05;
+
+function defaultYearPlan(year: number, returnAssumption: number = DEFAULT_RETURN_ASSUMPTION): YearPlanInput {
   return {
     year,
     conversionAmount: 0,
@@ -35,7 +38,7 @@ function defaultYearPlan(year: number): YearPlanInput {
     otherOrdinaryIncome: 0,
     discretionaryCapitalGains: 0,
     targetSpending: 70_000,
-    returnAssumption: 0.05,
+    returnAssumption,
   };
 }
 
@@ -44,14 +47,20 @@ export function makeDefaultYearPlans(household: HouseholdInput): YearPlanInput[]
   return Array.from({ length: household.horizonYears }, (_, i) => defaultYearPlan(household.startYear + i));
 }
 
-/** Merge a household's current horizon onto an existing plan array — keeps edits for years still in range, adds defaults for new years, drops years that fell out of range. */
+/** Merge a household's current horizon onto an existing plan array — keeps edits for years still in range, adds defaults for new years, drops years that fell out of range. New years pick up whatever return assumption the existing years already share, rather than silently reverting to the default. */
 export function reconcileYearPlans(household: HouseholdInput, existing: YearPlanInput[]): YearPlanInput[] {
   const byYear = new Map(existing.map((p) => [p.year, p]));
+  const currentReturnAssumption = existing[0]?.returnAssumption ?? DEFAULT_RETURN_ASSUMPTION;
   return Array.from({ length: household.horizonYears }, (_, i) => {
     const year = household.startYear + i;
     const found = byYear.get(year);
-    return found ? normalizeYearPlan(found) : defaultYearPlan(year);
+    return found ? normalizeYearPlan(found) : defaultYearPlan(year, currentReturnAssumption);
   });
+}
+
+/** Applies one blended return rate to every year plan at once — the UI exposes this as a single household-level assumption, even though the engine models it per year. */
+export function setReturnAssumptionForAllYears(yearPlans: YearPlanInput[], returnAssumption: number): YearPlanInput[] {
+  return yearPlans.map((p) => ({ ...p, returnAssumption }));
 }
 
 /**
@@ -66,6 +75,7 @@ export function normalizeHousehold(household: HouseholdInput): HouseholdInput {
   const [a, b] = household.spouses;
   return {
     ...household,
+    householdType: household.householdType ?? 'mfj',
     spouses: [
       { ...a, name: a.name ?? '' },
       { ...b, name: b.name ?? '' },
