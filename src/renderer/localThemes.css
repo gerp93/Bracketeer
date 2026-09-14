@@ -1,0 +1,45 @@
+/*
+ * Bracketeer-only themes — NOT part of VisualAssault's catalog (checked
+ * themes/THEMES.md upstream: no plain Light/Dark pair exists there, only
+ * the 14 stylized themes in themes.css). Kept in a separate file, deliberately
+ * not mixed into themes.css, so that file's "generated, don't edit by hand"
+ * header stays true and a future `generate_packages.py` re-vendor can't
+ * silently wipe these. Same token set/format as VisualAssault's themes for
+ * drop-in consistency (see themes/THEMES.md's "Token reference" section).
+ * If another app in the org wants a neutral light/dark pair too, propose
+ * these upstream to VisualAssault instead of copy-pasting this file.
+ */
+
+body.light-theme {
+    --color-top-bar-bg: #ffffff;
+    --color-top-bar-hover: #f5f6f8;
+    --color-text: #1a1d24;
+    --color-bg: #f5f6f8;
+    --color-bg-hover: #ffffff;
+    --color-primary-action: #2563eb;
+    --color-primary-action-hover: #1d4ed8;
+    --color-accent-green: #16803c;
+    --color-accent-red: #dc2626;
+    --color-accent-blue: #2563eb;
+    --color-surface: #ffffff;
+    --color-border: #e2e5ea;
+    --color-text-muted: #6b7280;
+    --color-accent-muted: #dde3ea;
+}
+
+body.dark-theme {
+    --color-top-bar-bg: #111318;
+    --color-top-bar-hover: #1a1d24;
+    --color-text: #e5e7eb;
+    --color-bg: #0b0d11;
+    --color-bg-hover: #1a1d24;
+    --color-primary-action: #2563eb;
+    --color-primary-action-hover: #3b76f0;
+    --color-accent-green: #22c55e;
+    --color-accent-red: #f87171;
+    --color-accent-blue: #60a5fa;
+    --color-surface: #151820;
+    --color-border: #2a2e37;
+    --color-text-muted: #9199a8;
+    --color-accent-muted: #1e2836;
+}

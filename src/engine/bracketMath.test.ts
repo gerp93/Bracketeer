@@ -10,20 +10,20 @@ describe('taxOnAmount', () => {
   });
 
   it('one dollar under the 12% bracket edge is taxed entirely at 10%', () => {
-    // 2025 MFJ: 10% bracket ends at $23,200.
-    const tax = taxOnAmount(23_199, mfj);
-    expect(tax).toBeCloseTo(23_199 * 0.1, 5);
+    // 2025 MFJ: 10% bracket ends at $23,850.
+    const tax = taxOnAmount(23_849, mfj);
+    expect(tax).toBeCloseTo(23_849 * 0.1, 5);
   });
 
   it('one dollar over the bracket edge taxes only that dollar at the higher rate', () => {
-    const at = taxOnAmount(23_200, mfj);
-    const overBy1 = taxOnAmount(23_201, mfj);
+    const at = taxOnAmount(23_850, mfj);
+    const overBy1 = taxOnAmount(23_851, mfj);
     expect(overBy1 - at).toBeCloseTo(0.12, 5);
   });
 
   it('matches a hand-computed total in the 22% bracket', () => {
-    // $150,000 MFJ 2025: 10% of 23,200 + 12% of (94,300-23,200) + 22% of (150,000-94,300)
-    const expected = 23_200 * 0.1 + (94_300 - 23_200) * 0.12 + (150_000 - 94_300) * 0.22;
+    // $150,000 MFJ 2025: 10% of 23,850 + 12% of (96,950-23,850) + 22% of (150,000-96,950)
+    const expected = 23_850 * 0.1 + (96_950 - 23_850) * 0.12 + (150_000 - 96_950) * 0.22;
     expect(taxOnAmount(150_000, mfj)).toBeCloseTo(expected, 5);
   });
 
@@ -43,14 +43,14 @@ describe('marginalRateAt', () => {
   });
 
   it('flips exactly at a bracket edge', () => {
-    expect(marginalRateAt(23_199, mfj)).toBe(0.1);
-    expect(marginalRateAt(23_200, mfj)).toBe(0.12);
+    expect(marginalRateAt(23_849, mfj)).toBe(0.1);
+    expect(marginalRateAt(23_850, mfj)).toBe(0.12);
   });
 });
 
 describe('headroomToNextBracket', () => {
   it('is exact at the dollar', () => {
-    expect(headroomToNextBracket(94_300 - 100, mfj)).toBe(100);
+    expect(headroomToNextBracket(96_950 - 100, mfj)).toBe(100);
   });
 
   it('is undefined in the top bracket', () => {

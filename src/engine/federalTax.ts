@@ -81,7 +81,13 @@ export function computeFederalTax(tables: TaxYearTables, input: FederalTaxInput)
 
 function computeDeductions(tables: TaxYearTables, input: FederalTaxInput): number {
   const base = tables.standardDeduction[input.filingStatus];
-  if (input.filingStatus === 'mfj') {
+  // MFS shares MFJ's per-spouse addition amount, not single's flat one —
+  // both are "married" amounts under this figure, historically identical
+  // to each other and smaller than single/HoH's. Bracketeer models MFS as
+  // one combined return rather than two genuinely separate ones (see
+  // projection.ts's docstring), so this is the same simplification applied
+  // to the 65+ addition specifically.
+  if (input.filingStatus === 'mfj' || input.filingStatus === 'mfs') {
     return base + input.age65PlusCount * ADDITIONAL_STANDARD_DEDUCTION_65_PLUS_MFJ_PER_SPOUSE;
   }
   return base + (input.age65PlusCount > 0 ? tables.additionalStandardDeduction65Plus : 0);

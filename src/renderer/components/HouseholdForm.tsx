@@ -8,10 +8,13 @@ import PercentInput from './PercentInput';
 interface Props {
   household: HouseholdInput;
   onChange: (household: HouseholdInput) => void;
+  /** One blended annual return applied to every account's balance, every year — the engine actually stores this per-year, but the UI exposes a single value that fans out to all years at once. */
+  returnAssumption: number;
+  onReturnAssumptionChange: (rate: number) => void;
 }
 
 /** Household, account, and assumption inputs. Every field here is a direct, editable assumption — nothing about the projection happens without something on this form driving it. */
-export default function HouseholdForm({ household, onChange }: Props) {
+export default function HouseholdForm({ household, onChange, returnAssumption, onReturnAssumptionChange }: Props) {
   const [editingSpouse, setEditingSpouse] = useState<0 | 1 | null>(null);
   const [draftName, setDraftName] = useState('');
 
@@ -41,10 +44,10 @@ export default function HouseholdForm({ household, onChange }: Props) {
     <div className="panel">
       <h2>Household</h2>
       <div className="form-grid">
-        {([0, 1] as const).map((i) => (
+        {(household.householdType === 'single' ? ([0] as const) : ([0, 1] as const)).map((i) => (
           <fieldset key={i}>
             <legend>
-              {household.spouses[i].name || `Spouse ${i + 1}`}
+              {household.spouses[i].name || (household.householdType === 'single' ? 'You' : `Spouse ${i + 1}`)}
               <button type="button" className="legend-edit-button" title="Edit name" onClick={() => openNameEditor(i)}>
                 ✎
               </button>
@@ -62,8 +65,16 @@ export default function HouseholdForm({ household, onChange }: Props) {
             </label>
             <label>
               <span className="field-label-row">
-                Assumed death year (optional — drives the widow&rsquo;s-penalty modeling)
-                <InfoTooltip text="Optional. Leave blank to assume this spouse survives the whole projection. If set, the household switches to single filing status the following year, and the survivor inherits this spouse's Social Security benefit if it's larger than their own — the 'widow's penalty' this tool is built to model." />
+                {household.householdType === 'single'
+                  ? 'Assumed death year (optional — ends the projection)'
+                  : "Assumed death year (optional — drives the widow's-penalty modeling)"}
+                <InfoTooltip
+                  text={
+                    household.householdType === 'single'
+                      ? 'Optional. Leave blank to project through the full horizon. If set, the projection simply stops the following year — nothing left to plan for.'
+                      : "Optional. Leave blank to assume this spouse survives the whole projection. If set, the household switches to single filing status the following year, and the survivor inherits this spouse's Social Security benefit if it's larger than their own — the 'widow's penalty' this tool is built to model."
+                  }
+                />
               </span>
               <input
                 type="number"
@@ -100,6 +111,20 @@ export default function HouseholdForm({ household, onChange }: Props) {
 
         <fieldset>
           <legend>State &amp; assumptions</legend>
+          <label>
+            <span className="field-label-row">
+              Household type
+              <InfoTooltip text="How the household files. Married Filing Jointly (MFJ): one combined return, the common case. Married Filing Separately (MFS): two spouses, but taxed on separate returns — narrower brackets, and Social Security becomes taxable almost immediately since MFS has no income-free threshold. Single: one person, no spouse at all — different from a widow(er), which this tool reaches automatically when a spouse's assumed death year passes." />
+            </span>
+            <select
+              value={household.householdType}
+              onChange={(e) => set('householdType', e.target.value as HouseholdInput['householdType'])}
+            >
+              <option value="mfj">Married Filing Jointly</option>
+              <option value="mfs">Married Filing Separately</option>
+              <option value="single">Single (no spouse)</option>
+            </select>
+          </label>
           <label>
             <span className="field-label-row">
               State
@@ -153,6 +178,13 @@ export default function HouseholdForm({ household, onChange }: Props) {
               value={household.generalInflationAssumption}
               onChange={(v) => set('generalInflationAssumption', v)}
             />
+          </label>
+          <label>
+            <span className="field-label-row">
+              Assumed annual investment return
+              <InfoTooltip text="Yes — growth is already modeled. This is the blended annual return applied every year to whatever's left in Traditional, Roth, and Brokerage after that year's RMD, conversion, withdrawals, and spending are subtracted — one rate across all three accounts, not broken out by asset allocation. Changing this updates every year in the grid below at once." />
+            </span>
+            <PercentInput value={returnAssumption} onChange={onReturnAssumptionChange} />
           </label>
           <label>
             <span className="field-label-row">

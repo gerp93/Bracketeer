@@ -35,17 +35,17 @@ describe('Hand-computed scenario — MFJ, wages + conversion, no SS/gains', () =
     // Total ordinary income: 50,000 wages + 40,000 conversion = 90,000. No SS to tax.
     expect(result.totalOrdinaryIncome).toBe(90_000);
 
-    // MFJ 2025 standard deduction (no 65+ addition): 30,000.
-    // Taxable income: 90,000 - 30,000 = 60,000.
-    expect(result.taxableIncome).toBe(60_000);
+    // MFJ 2025 standard deduction (no 65+ addition): 31,500 (post-OBBBA figure).
+    // Taxable income: 90,000 - 31,500 = 58,500.
+    expect(result.taxableIncome).toBe(58_500);
 
-    // Tax by hand: 10% of first 23,200 = 2,320.00
-    //              12% of (60,000 - 23,200) = 12% of 36,800 = 4,416.00
-    //              Total = 6,736.00
-    const expectedFederalTax = 23_200 * 0.1 + 36_800 * 0.12;
-    expect(expectedFederalTax).toBeCloseTo(6_736, 2);
-    expect(result.taxOnOrdinaryIncome).toBeCloseTo(6_736, 2);
-    expect(result.totalFederalTax).toBeCloseTo(6_736, 2);
+    // Tax by hand: 10% of first 23,850 = 2,385.00
+    //              12% of (58,500 - 23,850) = 12% of 34,650 = 4,158.00
+    //              Total = 6,543.00
+    const expectedFederalTax = 23_850 * 0.1 + 34_650 * 0.12;
+    expect(expectedFederalTax).toBeCloseTo(6_543, 2);
+    expect(result.taxOnOrdinaryIncome).toBeCloseTo(6_543, 2);
+    expect(result.totalFederalTax).toBeCloseTo(6_543, 2);
 
     // NIIT: AGI (90,000) is well under the $250,000 MFJ threshold -> $0.
     expect(result.niit).toBe(0);
@@ -70,16 +70,16 @@ describe('Hand-computed scenario — MFJ, wages + conversion, no SS/gains', () =
     // Federal AGI = 90,000 (no capital gains, no taxable SS to add).
     expect(federalResult.adjustedGrossIncome).toBe(90_000);
 
-    // MN standard deduction: 90,000 is well under the $220,650 MFJ
-    // phase-out start, so the FULL base deduction applies: $29,150.
-    // MN taxable income: 90,000 - 29,150 = 60,850. No SS subtraction (no SS benefits).
-    expect(stateResult.stateTaxableIncome).toBeCloseTo(60_850, 2);
+    // MN standard deduction: 90,000 is well under the $238,950 MFJ
+    // phase-out start, so the FULL base deduction applies: $29,900.
+    // MN taxable income: 90,000 - 29,900 = 60,100. No SS subtraction (no SS benefits).
+    expect(stateResult.stateTaxableIncome).toBeCloseTo(60_100, 2);
 
     // MN tax by hand: 5.35% of first 47,620 = 2,547.67
-    //                 6.80% of (60,850 - 47,620) = 6.80% of 13,230 = 899.64
-    //                 Total = 3,447.31
-    const expectedMnTax = 47_620 * 0.0535 + 13_230 * 0.068;
-    expect(expectedMnTax).toBeCloseTo(3_447.31, 1);
+    //                 6.80% of (60,100 - 47,620) = 6.80% of 12,480 = 848.64
+    //                 Total = 3,396.31
+    const expectedMnTax = 47_620 * 0.0535 + 12_480 * 0.068;
+    expect(expectedMnTax).toBeCloseTo(3_396.31, 1);
     expect(stateResult.stateTax).toBeCloseTo(expectedMnTax, 1);
   });
 

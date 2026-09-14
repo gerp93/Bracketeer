@@ -21,7 +21,17 @@ export interface AccountBalances {
 }
 
 export interface HouseholdInput {
-  /** v1 always starts MFJ (ROTH_PLANNER_V1_REQUIREMENTS.md section 6) — single is reached only via a spouse's assumed death, never chosen as the starting status. */
+  /**
+   * How the (up to two) people in `spouses` file while both are alive —
+   * 'mfj' or 'mfs'. 'single' means a genuinely solo household, not a
+   * widow(er): `spouses[1]` is still present in the data (the tuple shape
+   * below doesn't change) but is never read by the engine or shown in the
+   * UI once this is 'single' — see projection.ts's `resolveEffectiveSpouses`.
+   * The widow's-penalty transition (a real spouse dying mid-projection)
+   * still switches an 'mfj'/'mfs' household to single filing status for
+   * its own reasons, independent of this field.
+   */
+  householdType: 'mfj' | 'mfs' | 'single';
   spouses: [SpouseInput, SpouseInput];
   stateCode: string;
   /** Used only if stateCode has no dedicated module (FlatRateState fallback). */

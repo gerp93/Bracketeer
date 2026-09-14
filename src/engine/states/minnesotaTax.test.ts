@@ -34,14 +34,14 @@ describe('Minnesota — capital gains are ordinary income, no 0%/15% break', () 
 describe('Minnesota — standard deduction phase-down', () => {
   it('is the full base amount below the phase-out start', () => {
     const low = mn.computeStateTax({ ...baseInput, federalAgi: 100_000 });
-    // 100,000 - 29,150 (full MFJ deduction) = 70,850 taxable.
-    expect(low.stateTaxableIncome).toBeCloseTo(100_000 - 29_150, 2);
+    // 100,000 - 29,900 (full MFJ deduction) = 70,100 taxable.
+    expect(low.stateTaxableIncome).toBeCloseTo(100_000 - 29_900, 2);
   });
 
   it('shrinks the deduction above the phase-out start, raising taxable income faster than income itself rose', () => {
-    // Phase-out start (MFJ 2025) = 220,650.
-    const atStart = mn.computeStateTax({ ...baseInput, federalAgi: 220_650 });
-    const over = mn.computeStateTax({ ...baseInput, federalAgi: 320_650 }); // +100,000
+    // Phase-out start (MFJ 2025) = 238,950.
+    const atStart = mn.computeStateTax({ ...baseInput, federalAgi: 238_950 });
+    const over = mn.computeStateTax({ ...baseInput, federalAgi: 338_950 }); // +100,000
     const taxableIncomeIncrease = over.stateTaxableIncome - atStart.stateTaxableIncome;
     expect(taxableIncomeIncrease).toBeGreaterThan(100_000); // deduction shrank, so more than the raw income increase became taxable
   });
@@ -57,7 +57,7 @@ describe('Minnesota — Social Security subtraction phase-out', () => {
       socialSecurityBenefits: ssBenefits,
     });
     // MFJ subtraction cap 2025 = 6,960; federalAgi 60,000 < phaseout start 88,630.
-    expect(result.stateTaxableIncome).toBeCloseTo(60_000 - 29_150 - 6_960, 2);
+    expect(result.stateTaxableIncome).toBeCloseTo(60_000 - 29_900 - 6_960, 2);
   });
 
   it('a conversion that pushes AGI over the phase-out start loses subtraction on top of the added income', () => {
@@ -102,6 +102,6 @@ describe('Minnesota — Social Security subtraction phase-out', () => {
 });
 
 function MN_STANDARD_DEDUCTION_FLOOR(): number {
-  // Mirrors the module's own floor (20% of the MFJ base, 29,150) for the assertion above.
-  return 29_150 * 0.2;
+  // Mirrors the module's own floor (20% of the MFJ base, 29,900) for the assertion above.
+  return 29_900 * 0.2;
 }

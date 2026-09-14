@@ -50,16 +50,16 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
 
   const sortedPlans = [...yearPlans].sort((a, b) => a.year - b.year);
 
+  const [spouseA, spouseB] = resolveEffectiveSpouses(household);
+
   for (const plan of sortedPlans) {
     const { year } = plan;
-    const spouseA = household.spouses[0];
-    const spouseB = household.spouses[1];
 
     const aliveA = spouseA.assumedDeathYear === undefined || year <= spouseA.assumedDeathYear;
     const aliveB = spouseB.assumedDeathYear === undefined || year <= spouseB.assumedDeathYear;
     if (!aliveA && !aliveB) break; // household extinct — nothing left to project
 
-    const filingStatus: FilingStatus = aliveA && aliveB ? 'mfj' : 'single';
+    const filingStatus: FilingStatus = aliveA && aliveB ? household.householdType : 'single';
     const wasAliveBothLastYear =
       (spouseA.assumedDeathYear === undefined || year - 1 <= spouseA.assumedDeathYear) &&
       (spouseB.assumedDeathYear === undefined || year - 1 <= spouseB.assumedDeathYear);
@@ -98,15 +98,18 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
     const rothWithdrawal = Math.min(plan.rothWithdrawal, startingBalancesThisYear.roth);
 
     const ssBenefits = householdSocialSecurityBenefit(
-      household.spouses,
+      [spouseA, spouseB],
       year,
       household.startYear,
       household.generalInflationAssumption
     );
     const socialSecurityDetail: SocialSecurityDetail = {
-      spouseA: spouseSsDetail(household.spouses[0], year, household.startYear, household.generalInflationAssumption, aliveA),
-      spouseB: spouseSsDetail(household.spouses[1], year, household.startYear, household.generalInflationAssumption, aliveB),
-      isSurvivorBenefit: filingStatus === 'single',
+      spouseA: spouseSsDetail(spouseA, year, household.startYear, household.generalInflationAssumption, aliveA),
+      spouseB: spouseSsDetail(spouseB, year, household.startYear, household.generalInflationAssumption, aliveB),
+      // A solo household is 'single' for the whole horizon too, but there
+      // was never a real spouse to "step up" from — only flag this for the
+      // genuine widow's-penalty case, where a real marriage transitioned.
+      isSurvivorBenefit: filingStatus === 'single' && household.householdType !== 'single',
     };
 
     const proRataNonTaxableFraction =
@@ -230,6 +233,40 @@ export function runProjection(household: HouseholdInput, yearPlans: YearPlanInpu
     terminalBalances.taxable;
 
   return { years, lifetimeTaxPaid, terminalBalances, terminalAfterTaxWealth };
+}
+
+/**
+ * For 'mfj'/'mfs' households, returns `household.spouses` completely
+ * unchanged — the entire rest of this file's MFJ/widow's-penalty logic
+ * (alive checks, RMD's older-living-spouse comparison, the Social Security
+ * survivor step-up) runs exactly as it always has for those two, with zero
+ * new branches anywhere else in this file.
+ *
+ * For a 'single' household, `spouses[1]` in the stored data is never
+ * real — the UI doesn't even collect it — so this substitutes a phantom
+ * second spouse who has already "died" two years before the horizon
+ * starts (comfortably before `wasAliveBothLastYear` could ever read it as
+ * true for any projected year) and draws a $0 Social Security benefit.
+ * That's enough for every existing spouse-pair computation to degrade to
+ * exactly the right single-person answer on its own: `aliveB` is false
+ * for the whole horizon (so `filingStatus` and RMD's age selection both
+ * resolve to spouse A alone), and the survivor-benefit step-up compares
+ * spouse A's real benefit against a $0 hypothetical, which is a no-op.
+ * See `isSurvivorBenefit`'s own household-type check below for the one
+ * place this still needs a label correction (the math is right either
+ * way; only the "a spouse passed away" framing would be wrong for a
+ * household that never had one).
+ */
+function resolveEffectiveSpouses(household: HouseholdInput): [HouseholdInput['spouses'][0], HouseholdInput['spouses'][0]] {
+  if (household.householdType !== 'single') return household.spouses;
+  const phantomSpouse: HouseholdInput['spouses'][0] = {
+    name: '',
+    birthYear: household.startYear,
+    assumedDeathYear: household.startYear - 2,
+    ssBenefitAtFRA: 0,
+    ssClaimingAge: 67,
+  };
+  return [household.spouses[0], phantomSpouse];
 }
 
 /** Builds the per-spouse breakdown the SS column tooltip renders, mirroring the same claiming-adjustment and inflation math householdSocialSecurityBenefit itself uses. */
